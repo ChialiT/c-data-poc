@@ -1,0 +1,20 @@
+# Environment variables
+.env
+
+# Arweave keys
+# your-arweave-key.json
+arweave-key-dev.json
+
+# Node modules
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Other common ignores
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.local 
