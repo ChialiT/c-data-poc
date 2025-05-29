@@ -6,7 +6,7 @@ import imageCompression from 'browser-image-compression';
 // import exifr from 'exifr'; // Will be imported dynamically
 import { sha256 } from 'js-sha256';
 import { ethers, BrowserProvider, JsonRpcSigner } from 'ethers';
-import { EAS, SchemaEncoder } from "@ethereum-attestation-service/eas-sdk"; // Added EAS SDK imports
+// import { EAS, SchemaEncoder } from "@ethereum-attestation-service/eas-sdk"; // Added EAS SDK imports
 
 // Extend the Window interface to include ethereum
 interface Window {
@@ -15,9 +15,9 @@ interface Window {
 declare var window: Window;
 
 // Constants for EAS
-const EAS_CONTRACT_ADDRESS_BASE_SEPOLIA = "0x4200000000000000000000000000000000000021"; // Base Sepolia
-const SCHEMA_UID = "0x147ef1689f6c3e4f1d30b35b16d70b775380209723c33c298f6cd41ce1794056";
-const SCHEMA_STRING = "string photoTakenDate,string[] coordinates,string arweaveTxId,string thumbnailHash"; // Matches your schema
+// const EAS_CONTRACT_ADDRESS_BASE_SEPOLIA = "0x4200000000000000000000000000000000000021"; // Base Sepolia
+// const SCHEMA_UID = "0x147ef1689f6c3e4f1d30b35b16d70b775380209723c33c298f6cd41ce1794056";
+// const SCHEMA_STRING = "string photoTakenDate,string[] coordinates,string arweaveTxId,string thumbnailHash"; // Matches your schema
 
 export default function HomePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -27,8 +27,8 @@ export default function HomePage() {
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
   // State for EAS Attestation Data
-  const [photoTakenDate, setPhotoTakenDate] = useState<string | null>(null);
-  const [coordinates, setCoordinates] = useState<string[] | null>(null); // Schema expects string[]
+  // const [photoTakenDate, setPhotoTakenDate] = useState<string | null>(null);
+  // const [coordinates, setCoordinates] = useState<string[] | null>(null); // Schema expects string[]
   const [thumbnailHash, setThumbnailHash] = useState<string | null>(null);
   const [arweaveTxId, setArweaveTxId] = useState<string | null>(null); // Will be set after successful upload
 
@@ -39,6 +39,15 @@ export default function HomePage() {
 
   // Dynamically loaded exifr
   const [exifrParser, setExifrParser] = useState<any>(null);
+
+  // Helper function to calculate SHA256 hash of a file
+  async function calculateFileHash(file: File): Promise<string> {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return `0x${hashHex}`; // Return as hex string
+  }
 
   // Effect for loading exifr 
   useEffect(() => {
@@ -135,6 +144,8 @@ export default function HomePage() {
     setArweaveTxId(null);
     setThumbnailHash(null); // Reset thumbnail hash too
     // photoTakenDate and coordinates are no longer set here
+    // setPhotoTakenDate(null); 
+    // setCoordinates(null);
 
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
@@ -159,7 +170,7 @@ export default function HomePage() {
     }
   };
 
-  const handleUploadAndAttest = async () => {
+  const handleUploadAndSign = async () => {
     if (!selectedFile) {
       setFeedbackMessage("Please select a file first.");
       return;
@@ -175,33 +186,44 @@ export default function HomePage() {
     }
 
     setIsProcessing(true);
-    setFeedbackMessage("Processing file and extracting EXIF data...");
+    setFeedbackMessage("Processing file...");
     setArweaveTxId(null); 
 
-    // --- 1. Parse EXIF Data ---
-    // Initialize with empty values for optional fields
-    let localPhotoTakenDate: string = ""; 
-    let localCoordinates: string[] = []; 
-
-    try {
-      const exifData = await exifrParser(selectedFile);
-      console.log("EXIF Data (in handleUploadAndAttest):", exifData);
-      if (exifData?.DateTimeOriginal) {
-        localPhotoTakenDate = new Date(exifData.DateTimeOriginal).toISOString();
-      } else if (exifData?.CreateDate) {
-        localPhotoTakenDate = new Date(exifData.CreateDate).toISOString();
-      }
-      if (exifData?.latitude && exifData?.longitude) {
-        localCoordinates = [String(exifData.latitude), String(exifData.longitude)];
-      }
-      console.log("Parsed EXIF:", { localPhotoTakenDate, localCoordinates });
-    } catch (error) {
-      console.warn("Could not parse EXIF data (in handleUploadAndAttest):", error);
-      setFeedbackMessage("Warning: Could not parse EXIF data from the image. Continuing with empty date/coordinates.");
-      // localPhotoTakenDate & localCoordinates will remain as their initialized empty values
+    // --- 1. Calculate Hash of Original File for Signing ---
+    let fileHashForSigning = "";
+    if (selectedFile) { // selectedFile should not be null here due to earlier check, but good practice
+        try {
+            setFeedbackMessage("Calculating file hash for signing...");
+            fileHashForSigning = await calculateFileHash(selectedFile);
+            console.log("File hash for signing:", fileHashForSigning);
+        } catch (hashError: any) {
+            console.error("Error calculating file hash:", hashError);
+            setFeedbackMessage(`Error calculating file hash: ${hashError?.message || 'Unknown error'}. Upload cancelled.`);
+            setIsProcessing(false);
+            return;
+        }
     }
 
-    // --- 2. Optimize Photo ---
+    // --- 2. Prepare Message and Get Signature from User ---
+    setFeedbackMessage("Awaiting signature...");
+    const messageToSign = `I, ${connectedAccount}, attest to uploading the file named '${selectedFile.name}' with SHA256 hash: ${fileHashForSigning}. Timestamp: ${new Date().toISOString()}`;
+    let signature = "";
+    try {
+        if (!signer) { // Should be caught by earlier check, but for safety
+            setFeedbackMessage("Wallet signer not available. Please reconnect wallet.");
+            setIsProcessing(false);
+            return;
+        }
+        signature = await signer.signMessage(messageToSign);
+        console.log("Message signed. Signature:", signature);
+    } catch (signError: any) {
+        console.error("Error signing message:", signError);
+        setFeedbackMessage(`Failed to sign message: ${signError?.message || 'User rejected signing.'}. Upload cancelled.`);
+        setIsProcessing(false);
+        return;
+    }
+
+    // --- 3. Optimize Photo ---
     setFeedbackMessage("Optimizing photo...");
     const options = {
       maxSizeMB: 1,
@@ -215,10 +237,14 @@ export default function HomePage() {
       console.log('Compressed file:', currentOptimizedFile.name, currentOptimizedFile.type, currentOptimizedFile.size / 1024 / 1024, 'MB');
       setFeedbackMessage(`Optimization complete! Uploading to Arweave...`);
 
-      // --- 3. Upload to Arweave ---
+      // --- 4. Upload to Arweave ---
       const formData = new FormData();
       formData.append('photoFile', currentOptimizedFile, currentOptimizedFile.name);
       formData.append('userId', connectedAccount);
+      formData.append('originalFileName', selectedFile.name);
+      formData.append('fileHashSigned', fileHashForSigning);
+      formData.append('signedMessage', messageToSign);
+      formData.append('signature', signature);
 
       const uploadResponse = await fetch('http://localhost:3001/api/uploadPhoto', {
         method: 'POST',
@@ -231,51 +257,20 @@ export default function HomePage() {
       }
       
       const currentArweaveTxId = uploadResult.arweaveTxId;
-      setArweaveTxId(currentArweaveTxId); // Set state for display
-      setFeedbackMessage(`Arweave upload successful! TX ID: ${currentArweaveTxId}. Preparing attestation signature...`);
+      setArweaveTxId(currentArweaveTxId);
+      setFeedbackMessage(`Arweave upload successful! TX ID: ${currentArweaveTxId}.`);
       console.log("Arweave Upload result:", uploadResult);
 
-      // --- 4. Prepare Attestation Data ---
-      // thumbnailHash should be available from state (set in handleFileChange)
-      console.log("Preparing data for EAS attestation:");
-      console.log("Recipient (Attester - User's Wallet):", connectedAccount);
-      console.log("Photo Taken Date (local):", localPhotoTakenDate);
-      console.log("Coordinates (local):", localCoordinates);
-      console.log("Arweave TX ID (current):", currentArweaveTxId);
-      console.log("Thumbnail Hash (from state):", thumbnailHash);
-
-      // Update validation: only arweaveTxId and thumbnailHash are strictly mandatory from the frontend perspective now
-      if (!thumbnailHash || !currentArweaveTxId) {
-        setFeedbackMessage("Error: Missing Arweave TX ID or Thumbnail Hash for attestation. Check console.");
-        console.error("Missing data for attestation:", { 
-            photoTakenDate: localPhotoTakenDate, // Will be empty string if not found
-            coordinates: localCoordinates,       // Will be empty array if not found
-            thumbnailHash, 
-            arweaveTxId: currentArweaveTxId 
-        });
-        setIsProcessing(false);
-        return;
-      }
-
-      const attestationPayload = {
-        recipient: connectedAccount, 
-        photoTakenDate: localPhotoTakenDate,
-        coordinates: localCoordinates,
-        arweaveTxId: currentArweaveTxId,
-        thumbnailHash,
-      };
-      
-      // Call the new signing function
-      await signAndSubmitDelegatedAttestation(attestationPayload);
+      // Attestation part is already commented out
+      setIsProcessing(false); 
 
     } catch (error: any) {
       console.error("Error during processing or upload:", error);
       setFeedbackMessage(`Error: ${error.message || 'Unknown error'}. See console.`);
-    } finally {
-      setIsProcessing(false);
     }
   };
 
+  /* // Commenting out the entire EAS attestation function
   const signAndSubmitDelegatedAttestation = async (payload: {
     recipient: string;
     photoTakenDate: string;
@@ -387,11 +382,12 @@ export default function HomePage() {
       console.error("Error during signing or submitting delegated attestation:", error);
       setFeedbackMessage(`Error: ${error.message || 'Delegated attestation process failed.'}`);
     }
-  };
+  }; 
+  */
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <h1 className="text-4xl font-bold mb-8">Upload Photo & Attest (POC)</h1>
+      <h1 className="text-4xl font-bold mb-8">Upload Photo & Sign</h1>
       
       {/* Placeholder for Privy Login/Logout */}
       <div className="absolute top-4 right-4">
@@ -447,11 +443,11 @@ export default function HomePage() {
         )}
 
         <button
-          onClick={handleUploadAndAttest} 
+          onClick={handleUploadAndSign} 
           disabled={!selectedFile || isProcessing || !exifrParser || !connectedAccount || !signer}
           className="mt-6 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isProcessing ? 'Processing...' : (exifrParser && connectedAccount ? 'Upload & Attest' : 'Connect Wallet / Load Parser...')}
+          {isProcessing ? 'Processing...' : (exifrParser && connectedAccount ? 'Upload & Sign Photo' : 'Connect Wallet / Load Parser...')}
         </button>
 
         {feedbackMessage && (
