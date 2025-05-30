@@ -11,11 +11,21 @@ import { Hex, encodeFunctionData, parseEther, parseGwei, getAddress, createPubli
 // Alchemy SDK imports are no longer directly used.
 // Linter errors for these might be stale or due to transitive type issues.
 
-import { baseSepolia } from 'viem/chains'; // No need to alias ViemChain if Privy handles chain context
+// import { baseSepolia } from 'viem/chains'; // Old chain
+import { optimismSepolia } from 'viem/chains'; // New chain for Optimism Sepolia
 
+// Base Sepolia Constants (can be kept for reference or removed if no longer switching)
 const EAS_CONTRACT_ADDRESS_BASE_SEPOLIA = getAddress("0x4200000000000000000000000000000000000021");
-const SCHEMA_UID = "0x147ef1689f6c3e4f1d30b35b16d70b775380209723c33c298f6cd41ce1794056" as Hex;
-const SCHEMA_STRING = "string photoTakenDate,string[] coordinates,string arweaveTxId,string thumbnailHash";
+const SCHEMA_UID_BASE_SEPOLIA = "0x147ef1689f6c3e4f1d30b35b16d70b775380209723c33c298f6cd41ce1794056" as Hex;
+const SCHEMA_STRING_BASE_SEPOLIA = "string photoTakenDate,string[] coordinates,string arweaveTxId,string thumbnailHash";
+
+// Optimism Sepolia Constants
+const EAS_CONTRACT_ADDRESS_OP_SEPOLIA = getAddress("0x4200000000000000000000000000000000000021"); // Same address
+const SCHEMA_UID_OP_SEPOLIA = "0x0012cce76ec73664d811d02e96462cca40518ded7321a3937cf94c7211d56d46" as Hex;
+const SCHEMA_STRING_OP_SEPOLIA = "string photoTakenDate,string ArweaveTXID,string[] Coordinate,string thumbnailHash";
+
+// System address for a simple, low-cost transaction (e.g., to trigger deployment)
+const SYSTEM_ADDRESS_FOR_DEPLOYMENT_TEST = getAddress("0x4200000000000000000000000000000000000006");
 
 // More complete ABI for attest function, including struct definitions
 const EAS_ATTEST_FUNCTION_ABI_WITH_STRUCTS = [
@@ -95,6 +105,8 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [deploymentStatus, setDeploymentStatus] = useState<string | null>(null); // New state for deployment status
   const [directCallResult, setDirectCallResult] = useState<string | null>(null);
+  const [deployScaStatus, setDeployScaStatus] = useState<string | null>(null); // For the new deploy button
+  const [isDeployingSca, setIsDeployingSca] = useState<boolean>(false); // Corrected type to boolean
 
   useEffect(() => {
     import('exifr').then(exifrModule => setExifrParser(() => exifrModule.default.parse)).catch(err => console.error("Failed to load exifr:", err));
@@ -161,14 +173,14 @@ export default function HomePage() {
     } else { setSelectedFile(null); setPreviewUrl(null); }
   };
 
-  const handleSponsoredAttestation = async (/* payload: { recipient: Hex; photoTakenDate: string; coordinates: string[]; arweaveTxId: string; thumbnailHash: string; } */) => {
-    // TEMPORARILY OVERRIDE PAYLOAD FOR TESTING WITH MINIMALIST DATA
+  const handleSponsoredAttestation = async (/* payload: { ... } */) => {
     const testPayload = {
-      recipient: "0x0000000000000000000000000000000000000000" as Hex, // Zero address
-      photoTakenDate: "", // Empty string
-      coordinates: [] as string[], // Empty array, explicitly typed
-      arweaveTxId: "", // Empty string
-      thumbnailHash: "", // Empty string
+      recipient: "0x0000000000000000000000000000000000000000" as Hex,
+      photoTakenDate: "", 
+      // Update field names to match SCHEMA_STRING_OP_SEPOLIA
+      ArweaveTXID: "", 
+      Coordinate: [] as string[], 
+      thumbnailHash: "", 
     };
 
     if (!privySmartWalletClient || !smartAccountAddress) {
@@ -180,7 +192,8 @@ export default function HomePage() {
     setFeedbackMessage("Preparing sponsored attestation call to EAS.attest()...");
     try {
       const currentRecipientAddress = getAddress(testPayload.recipient);
-      const currentEasContractAddress = getAddress(EAS_CONTRACT_ADDRESS_BASE_SEPOLIA);
+      // Use OP Sepolia EAS Contract Address
+      const currentEasContractAddress = getAddress(EAS_CONTRACT_ADDRESS_OP_SEPOLIA);
 
       console.log("[Debug Attestation Pre-Check] currentRecipientAddress:", currentRecipientAddress, "typeof:", typeof currentRecipientAddress);
       if (typeof currentRecipientAddress !== 'string' || !currentRecipientAddress.startsWith('0x')) {
@@ -195,18 +208,19 @@ export default function HomePage() {
         return;
       }
 
-
-      const schemaEncoder = new SchemaEncoder(SCHEMA_STRING);
+      // Use OP Sepolia Schema String
+      const schemaEncoder = new SchemaEncoder(SCHEMA_STRING_OP_SEPOLIA);
       const encodedSchemaData = schemaEncoder.encodeData([
         { name: "photoTakenDate", value: testPayload.photoTakenDate, type: "string" }, 
-        { name: "coordinates", value: testPayload.coordinates, type: "string[]" },
-        { name: "arweaveTxId", value: testPayload.arweaveTxId, type: "string" }, 
+        // Update field names to match SCHEMA_STRING_OP_SEPOLIA
+        { name: "ArweaveTXID", value: testPayload.ArweaveTXID, type: "string" }, 
+        { name: "Coordinate", value: testPayload.Coordinate, type: "string[]" },
         { name: "thumbnailHash", value: testPayload.thumbnailHash, type: "string" },
       ]);
 
-      const attestationRequestData = { // Renamed to match EAS struct for clarity
-        schema: SCHEMA_UID, 
-        data: { // This inner object matches AttestationData struct
+      const attestationRequestData = { 
+        schema: SCHEMA_UID_OP_SEPOLIA, // Use OP Sepolia Schema UID
+        data: { 
           recipient: currentRecipientAddress,
           expirationTime: 0n,
           revocable: true,
@@ -233,7 +247,7 @@ export default function HomePage() {
       setFeedbackMessage("Sending sponsored call to EAS.attest()...");
       
       const txHash = await privySmartWalletClient.sendTransaction({
-        to: currentEasContractAddress,
+        to: currentEasContractAddress, // Already correctly using the OP Sepolia var due to above change
         data: attestTxCallData,
         value: 0n, 
       });
@@ -348,8 +362,8 @@ export default function HomePage() {
     setDeploymentStatus("Checking deployment status...");
     try {
       const publicClient = createPublicClient({
-        chain: baseSepolia,
-        transport: http(), // Uses default public RPC for baseSepolia via viem
+        chain: optimismSepolia, // Use Optimism Sepolia chain
+        transport: http(), // Uses default public RPC for optimismSepolia via viem
       });
       const bytecode = await publicClient.getBytecode({ address: smartAccountAddress as Hex });
       if (bytecode && bytecode !== '0x') {
@@ -367,7 +381,7 @@ export default function HomePage() {
 
   const handleTestDirectEASCall = async () => {
     console.log("NEXT_PUBLIC_ALCHEMY_API_KEY inside handleTestDirectEASCall:", process.env.NEXT_PUBLIC_ALCHEMY_API_KEY);
-    if (!wallets || wallets.length === 0 || !wallets[0].address) { // getEthereumProvider is a function, so check for it later
+    if (!wallets || wallets.length === 0 || !wallets[0].address) { 
       setDirectCallResult("EOA wallet not connected or available.");
       return;
     }
@@ -395,9 +409,9 @@ export default function HomePage() {
       // });
 
       const publicClient = createPublicClient({
-        chain: baseSepolia,
-        transport: http(`https://base-sepolia.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`),
-        // transport: http(), // Use default public RPC for baseSepolia
+        chain: optimismSepolia, // Use Optimism Sepolia chain
+        // Use Optimism Sepolia Alchemy RPC endpoint
+        transport: http(`https://opt-sepolia.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`),
       });
 
       const versionSelector = "0x54fd4d50" as Hex; // Selector for version()
@@ -405,7 +419,7 @@ export default function HomePage() {
       setDirectCallResult("Attempting publicClient.call to EAS.version()...");
 
       const result = await publicClient.call({
-        to: EAS_CONTRACT_ADDRESS_BASE_SEPOLIA,
+        to: EAS_CONTRACT_ADDRESS_OP_SEPOLIA, // Use Optimism Sepolia EAS contract address
         data: versionSelector,
       });
 
@@ -430,6 +444,43 @@ export default function HomePage() {
     } catch (e: any) {
       console.error("Direct EOA call to EAS failed:", e);
       setDirectCallResult(`Direct EOA call Error: ${e.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleDeploySmartAccount = async () => {
+    if (!privySmartWalletClient || !smartAccountAddress) {
+      setDeployScaStatus("Smart Wallet client or address not available.");
+      console.error("Deploy SCA Error: Smart wallet client or address not available.");
+      return;
+    }
+
+    setIsDeployingSca(true);
+    setDeployScaStatus("Initiating Smart Contract Account deployment transaction...");
+    setError(null); // Clear previous general errors
+
+    try {
+      console.log(`Attempting to deploy SCA ${smartAccountAddress} on Optimism Sepolia by sending a simple transaction.`);
+
+      const txHash = await privySmartWalletClient.sendTransaction({
+        to: SYSTEM_ADDRESS_FOR_DEPLOYMENT_TEST,
+        data: '0x',
+        value: 0n,
+      });
+
+      setDeployScaStatus(`SCA deployment/test transaction submitted! Hash: ${txHash}. Check your wallet and block explorer. The SCA will be deployed with this first transaction if it wasn't already.`);
+      console.log("SCA deployment/test transaction UserOperation hash:", txHash);
+
+    } catch (e: any) {
+      console.error("SCA deployment/test transaction failed:", e);
+      const errorMessage = e.details || e.message || (typeof e === 'string' ? e : 'Unknown error');
+      let displayError = `SCA Deploy Error: ${errorMessage}`;
+      if (e.cause) {
+        displayError += ` Cause: ${e.cause.message || JSON.stringify(e.cause)}`;
+      }
+      setDeployScaStatus(displayError);
+      setError(displayError); // Also set general error if desired
+    } finally {
+      setIsDeployingSca(false);
     }
   };
 
@@ -555,6 +606,31 @@ export default function HomePage() {
           )}
         </div>
       )}
+      {/* Button for deploying a new Smart Contract Account */}
+      <div className="w-full max-w-xl mt-4 p-4 bg-white rounded-lg shadow-md">
+        <button 
+          onClick={handleDeploySmartAccount}
+          disabled={!ready || !authenticated || !privySmartWalletClient || !smartAccountAddress || isDeployingSca}
+          className="w-full px-6 py-2 bg-purple-500 text-white font-semibold rounded-lg shadow hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isDeployingSca ? (
+            <span className="flex items-center justify-center">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Deploying Smart Contract Account...
+            </span>
+          ) : (
+            'Deploy New Smart Contract Account'
+          )}
+        </button>
+        {deployScaStatus && (
+          <div className="mt-3 p-3 text-sm text-gray-700 bg-gray-100 border border-gray-300 rounded-md break-all">
+            {deployScaStatus}
+          </div>
+        )}
+      </div>
     </main>
   );
 }
