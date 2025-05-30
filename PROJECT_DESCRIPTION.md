@@ -121,7 +121,7 @@ This Proof of Concept (POC) demonstrates a decentralized crowd-sourced data coll
 
 **Scope:**
 - **Client-side EXIF data extraction** for timestamps and GPS coordinates from original photo
-- EAS schema definition and deployment on Optimism Sepolia
+- EAS schema definition and deployment on Base Sepolia
 - Automated attestation workflow
 - **Server-side thumbnail storage** and serving
 - Link Arweave uploads with EAS attestations
