@@ -107,6 +107,14 @@ export default function HomePage() {
   const [directCallResult, setDirectCallResult] = useState<string | null>(null);
   const [deployScaStatus, setDeployScaStatus] = useState<string | null>(null); // For the new deploy button
   const [isDeployingSca, setIsDeployingSca] = useState<boolean>(false); // Corrected type to boolean
+  const [eoaSignature, setEoaSignature] = useState<string | null>(null); // For testing EOA signing
+  const [arweaveUploadData, setArweaveUploadData] = useState< { metadataToSign: { userEOA: Hex; thumbnailHash: string; }; metadataString: string; signature: string; file: File } | null >(null); 
+
+  // State for Irys auto-approval
+  const [isIrysApproved, setIsIrysApproved] = useState<boolean>(false);
+  const [irysApprovalLoading, setIrysApprovalLoading] = useState<boolean>(false); // Initially true if we call on load
+  const [irysApprovalError, setIrysApprovalError] = useState<string | null>(null);
+  const [irysDelegationId, setIrysDelegationId] = useState<string | null>(null);
 
   useEffect(() => {
     import('exifr').then(exifrModule => setExifrParser(() => exifrModule.default.parse)).catch(err => console.error("Failed to load exifr:", err));
@@ -146,6 +154,86 @@ export default function HomePage() {
     }
   }, [ready, authenticated, user]);
 
+  // useEffect for Irys Auto-Approval, depends on user and wallets being ready
+  useEffect(() => {
+    const requestAutoApproval = async (currentUser: typeof user, primaryWallet: typeof wallets[0]) => {
+      if (!currentUser || !primaryWallet?.address) return;
+
+      setIrysApprovalLoading(true);
+      setIrysApprovalError(null);
+      // setIsIrysApproved(false); // Don't reset isIrysApproved here, let it persist if previously true
+      // setIrysDelegationId(null); // Don't reset delegationId here for same reason
+
+      try {
+        console.log("[Auto-Approval] Requesting for EOA:", primaryWallet.address);
+        const backendApiUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3001';
+        const response = await fetch(`${backendApiUrl}/api/irys/auto-approve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userAddress: primaryWallet.address, 
+            socialProvider: primaryWallet.walletClientType || 'embedded_wallet', 
+            userId: currentUser.id, 
+            // email: currentUser.email?.address, // Ensure this is what you want to send
+          }),
+        });
+        
+        const resultText = await response.text(); // Read as text first to handle non-JSON responses
+        if (!response.ok) {
+          // Handle non-2xx responses that might be HTML (like a 404 page) or plain text errors
+          console.error(`[Auto-Approval] API Error (${response.status}):`, resultText);
+          let errorMessage = `API Error ${response.status}: `;
+          try {
+            const jsonError = JSON.parse(resultText); // Try to parse as JSON if server sends structured error
+            errorMessage += jsonError.error || jsonError.message || 'Server returned an error.';
+          } catch (e) {
+            errorMessage += 'Could not parse error response. Check network tab for details.';
+          }
+          setIrysApprovalError(errorMessage);
+          setFeedbackMessage(`Irys Approval Error: ${errorMessage}`);
+          setIsIrysApproved(false);
+          setIrysApprovalLoading(false);
+          return; // Important to exit after handling error
+        }
+
+        const result = JSON.parse(resultText); // Now parse as JSON if response.ok
+        console.log('[Auto-Approval] Result:', result);
+
+        if (result.success && result.approved) {
+          setIsIrysApproved(true);
+          setIrysDelegationId(result.delegationId || null);
+          setFeedbackMessage(result.message || 'User approved for Irys uploads.');
+        } else {
+          setIrysApprovalError(result.error || result.message || 'Auto-approval failed.');
+          setFeedbackMessage(`Irys Approval Error: ${result.error || result.message || 'Unknown error'}`);
+          setIsIrysApproved(false);
+        }
+      } catch (error: any) {
+        console.error('[Auto-Approval] Network or parsing error:', error);
+        setIrysApprovalError(error.message || 'Network error during auto-approval.');
+        setFeedbackMessage(`Irys Approval Network Error: ${error.message || 'Unknown error'}`);
+        setIsIrysApproved(false);
+      }
+      setIrysApprovalLoading(false);
+    };
+
+    if (ready && authenticated && user && wallets && wallets.length > 0 && wallets[0]?.address) {
+      // Try once per login/auth change if not already approved and no error previously, or if loading
+      if (!isIrysApproved && !irysApprovalError) { // Only attempt if not approved and no prior error
+        if (!irysApprovalLoading) { // And not already loading from a previous rapid re-render
+          requestAutoApproval(user, wallets[0]);
+        }
+      } else if (irysApprovalError) {
+        console.log("[Auto-Approval] Skipping due to previous error:", irysApprovalError);
+      }
+    } else if (!authenticated) {
+      setIsIrysApproved(false);
+      setIrysDelegationId(null);
+      setIrysApprovalLoading(false);
+      setIrysApprovalError(null);
+    }
+  }, [ready, authenticated, user, wallets]); // Removed isIrysApproved and irysApprovalLoading from deps to avoid loops on their change
+
   useEffect(() => {
     console.log("Privy Smart Wallet Client updated:", privySmartWalletClient);
     if (smartAccountAddressFromUser) {
@@ -173,16 +261,7 @@ export default function HomePage() {
     } else { setSelectedFile(null); setPreviewUrl(null); }
   };
 
-  const handleSponsoredAttestation = async (/* payload: { ... } */) => {
-    const testPayload = {
-      recipient: "0x0000000000000000000000000000000000000000" as Hex,
-      photoTakenDate: "", 
-      // Update field names to match SCHEMA_STRING_OP_SEPOLIA
-      ArweaveTXID: "", 
-      Coordinate: [] as string[], 
-      thumbnailHash: "", 
-    };
-
+  const handleSponsoredAttestation = async (payload?: { photoTakenDate: string; coordinates: string[]; arweaveTxId: string; thumbnailHash: string; userEOA: Hex }) => {
     if (!privySmartWalletClient || !smartAccountAddress) {
       setFeedbackMessage("Privy Smart Wallet client not ready or address not available."); return;
     }
@@ -191,7 +270,7 @@ export default function HomePage() {
     }
     setFeedbackMessage("Preparing sponsored attestation call to EAS.attest()...");
     try {
-      const currentRecipientAddress = getAddress(testPayload.recipient);
+      const currentRecipientAddress = getAddress(user.wallet.address);
       // Use OP Sepolia EAS Contract Address
       const currentEasContractAddress = getAddress(EAS_CONTRACT_ADDRESS_OP_SEPOLIA);
 
@@ -211,11 +290,10 @@ export default function HomePage() {
       // Use OP Sepolia Schema String
       const schemaEncoder = new SchemaEncoder(SCHEMA_STRING_OP_SEPOLIA);
       const encodedSchemaData = schemaEncoder.encodeData([
-        { name: "photoTakenDate", value: testPayload.photoTakenDate, type: "string" }, 
-        // Update field names to match SCHEMA_STRING_OP_SEPOLIA
-        { name: "ArweaveTXID", value: testPayload.ArweaveTXID, type: "string" }, 
-        { name: "Coordinate", value: testPayload.Coordinate, type: "string[]" },
-        { name: "thumbnailHash", value: testPayload.thumbnailHash, type: "string" },
+        { name: "photoTakenDate", value: payload?.photoTakenDate || "", type: "string" }, 
+        { name: "ArweaveTXID", value: payload?.arweaveTxId || "", type: "string" }, 
+        { name: "Coordinate", value: payload?.coordinates || [], type: "string[]" },
+        { name: "thumbnailHash", value: payload?.thumbnailHash || "", type: "string" },
       ]);
 
       const attestationRequestData = { 
@@ -274,43 +352,77 @@ export default function HomePage() {
     if (!authenticated || !user?.wallet?.address || !privySmartWalletClient || !smartAccountAddress) { 
         setFeedbackMessage("Login/Wallet/Smart Account not ready."); return; 
     }
-    // if (!exifrParser) { setFeedbackMessage("EXIF parser not loaded."); return; } // Keep this if you want to ensure it loads, but we are bypassing its data
+    if (!isIrysApproved) {
+        setFeedbackMessage("Irys auto-approval is not complete. Please wait or try refreshing."); return;
+    }
+
     setIsProcessing(true); 
-    // setFeedbackMessage("Processing file..."); // Comment out dynamic messages for debug
-    // setArweaveTxId(null); // Comment out dynamic messages for debug
-    // let localPhotoTakenDate = "", localCoordinates: string[] = [];
-    // try {
-    //   const exifData = await exifrParser(selectedFile);
-    //   if (exifData?.DateTimeOriginal) localPhotoTakenDate = new Date(exifData.DateTimeOriginal).toISOString();
-    //   else if (exifData?.CreateDate) localPhotoTakenDate = new Date(exifData.CreateDate).toISOString();
-    //   if (exifData?.latitude && exifData?.longitude) localCoordinates = [String(exifData.latitude), String(exifData.longitude)];
-    // } catch (e) { console.warn("EXIF parsing failed:", e); setFeedbackMessage("Warn: EXIF parsing failed."); }
-    // setFeedbackMessage("Optimizing photo...");
-    // try {
-      // const currentOptimizedFile = await imageCompression(selectedFile, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true });
-      // setFeedbackMessage(`Uploading to Arweave (EOA: ${user.wallet.address}, SCA: ${smartAccountAddress})...`);
-      // const formData = new FormData(); formData.append('photoFile', currentOptimizedFile); 
-      // formData.append('userId', smartAccountAddress); 
-      // const uploadResponse = await fetch('http://localhost:3001/api/uploadPhoto', { method: 'POST', body: formData });
-      // const uploadResult = await uploadResponse.json();
-      // if (!uploadResponse.ok) throw new Error(uploadResult.message || 'Arweave upload failed');
-      // const currentArweaveTxId = uploadResult.arweaveTxId; setArweaveTxId(currentArweaveTxId);
-      // setFeedbackMessage(`Arweave upload done! TX: ${currentArweaveTxId}. Sponsoring attestation (from ${smartAccountAddress})...`);
-      // if (!thumbnailHash || !currentArweaveTxId) { setFeedbackMessage("Error: Arweave TX ID or Thumbnail Hash missing."); setIsProcessing(false); return; }
+    setFeedbackMessage("Preparing Arweave data and signing with EOA...");
+    setArweaveTxId(null);
+    setError(null); // Clear previous errors
+
+    try {
+      // 1. Prepare and sign Arweave data using EOA
+      const signedArweaveData = await handlePrepareAndSignArweaveData(); 
       
-      // Directly call handleSponsoredAttestation with simplified data, bypassing dynamic data extraction for this test
-      setFeedbackMessage("DEBUG: Bypassing dynamic data, calling attestation with hardcoded simple values...");
-      await handleSponsoredAttestation(); // No payload passed, as it's hardcoded inside now
-    // } catch (err: any) { 
-    //   console.error("Processing/upload error:", err); 
-    //   const errorMessage = err.details || err.message || (typeof err === 'string' ? err : 'Unknown error');
-    //   let displayError = `Error: ${errorMessage}`;
-    //    if (err.cause) { 
-    //     displayError += ` Cause: ${err.cause.message || JSON.stringify(err.cause)}`;
-    //   }
-    //   setFeedbackMessage(displayError);
-    // } finally { setIsProcessing(false); } // Keep processing false for simplicity or handle it if test runs long
-    setIsProcessing(false); // Ensure processing is reset
+      if (!signedArweaveData || !signedArweaveData.file || !signedArweaveData.signature) {
+        // Feedback message will be set by handlePrepareAndSignArweaveData on failure
+        // setFeedbackMessage("Failed to prepare or sign Arweave data. Please try again.");
+        setIsProcessing(false);
+        return;
+      }
+
+      // Update state if needed, though we are using the direct return value
+      setArweaveUploadData(signedArweaveData);
+
+      setFeedbackMessage(`Uploading to Arweave (EOA: ${user.wallet.address}, SCA: ${smartAccountAddress})...`);
+      const formData = new FormData(); 
+      formData.append('photoFile', signedArweaveData.file); 
+      formData.append('metadataToSign', JSON.stringify(signedArweaveData.metadataToSign));
+      formData.append('signature', signedArweaveData.signature);
+      formData.append('userEOA', signedArweaveData.metadataToSign.userEOA);
+
+      const backendApiUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3001';
+      const uploadResponse = await fetch(`${backendApiUrl}/api/uploadPhoto`, { method: 'POST', body: formData });
+      const uploadResult = await uploadResponse.json();
+
+      if (!uploadResponse.ok || !uploadResult.success) {
+        throw new Error(uploadResult.message || uploadResult.error || 'Arweave upload failed');
+      }
+      
+      const currentArweaveTxId = uploadResult.arweaveTxId as Hex; 
+      setArweaveTxId(currentArweaveTxId);
+      setFeedbackMessage(`Arweave upload done! TX: ${currentArweaveTxId}. Preparing EAS attestation...`);
+
+      if (!thumbnailHash || !currentArweaveTxId || !user.wallet.address) { 
+        setFeedbackMessage("Error: Arweave TX ID, Thumbnail Hash, or User EOA missing for EAS."); 
+        setIsProcessing(false); 
+        return; 
+      }
+      
+      const easAttestationPayload = {
+        photoTakenDate: new Date().toISOString(),
+        coordinates: ["0", "0"],
+        arweaveTxId: currentArweaveTxId,
+        thumbnailHash: thumbnailHash,
+        userEOA: getAddress(user.wallet.address) as Hex,
+      };
+
+      setFeedbackMessage(`Sponsoring EAS attestation (from ${smartAccountAddress}) for Arweave TX ${currentArweaveTxId}...`);
+      await handleSponsoredAttestation(easAttestationPayload);
+
+    } catch (err: any) { 
+      console.error("Upload and Attest error:", err); 
+      const errorMessage = err.details || err.message || (typeof err === 'string' ? err : 'Unknown error');
+      let displayError = `Error: ${errorMessage}`;
+       if (err.cause) { 
+        displayError += ` Cause: ${err.cause.message || JSON.stringify(err.cause)}`;
+      }
+      setError(displayError);
+      setFeedbackMessage(displayError);
+    } finally { 
+      setIsProcessing(false); 
+    }
   };
 
   // Restore to test sponsored ETH transfer
@@ -484,6 +596,120 @@ export default function HomePage() {
     }
   };
 
+  // Test function for EOA signing
+  const handleTestEOASign = async () => {
+    const activeWallet = wallets[0]; // Try using the first wallet from useWallets()
+
+    if (!activeWallet) {
+      setFeedbackMessage("User wallet (EOA) not available. Please log in.");
+      setError("User wallet (EOA) not available.");
+      return;
+    }
+    setFeedbackMessage("Attempting to sign message with EOA...");
+    setError(null);
+    setEoaSignature(null);
+    try {
+      const messageToSign = "Hello from my EOA via Privy!";
+
+      // Get the EIP-1193 provider from the Privy wallet
+      const provider = await activeWallet.getEthereumProvider();
+
+      // Create a Viem Wallet Client
+      const client = createWalletClient({
+        account: activeWallet.address as Hex, // Ensure EOA address is Hex
+        chain: optimismSepolia, // Make sure this is your target chain
+        transport: custom(provider)
+      });
+
+      // Sign the message
+      const signature = await client.signMessage({
+        account: activeWallet.address as Hex, // Pass the account again here
+        message: messageToSign
+      });
+
+      setEoaSignature(signature);
+      setFeedbackMessage("Successfully signed message with EOA!");
+      console.log("EOA Signature:", signature);
+    } catch (e: any) {
+      console.error("Error signing message with EOA:", e);
+      setError(`Error signing message with EOA: ${e.message}`);
+      setFeedbackMessage("Failed to sign message with EOA.");
+    }
+  };
+
+  const handlePrepareAndSignArweaveData = async (): Promise<{ metadataToSign: { userEOA: Hex; thumbnailHash: string; }; metadataString: string; signature: string; file: File } | null> => {
+    if (!selectedFile || !thumbnailHash) {
+      setFeedbackMessage("Please select a file first (thumbnail hash should also be generated).");
+      return null;
+    }
+    const activeWallet = wallets[0];
+    if (!activeWallet || !activeWallet.address) {
+      setFeedbackMessage("EOA wallet not available. Please log in.");
+      return null;
+    }
+    if (!exifrParser) {
+      setFeedbackMessage("EXIF parser not loaded yet.");
+      return null;
+    }
+
+    setFeedbackMessage("Preparing Arweave data and signing with EOA...");
+    setError(null);
+    // setArweaveUploadData(null); // We will return the data instead of just setting state here
+
+    try {
+      let photoTakenDate: string | null = null;
+      let coordinates: [number, number] | null = null;
+
+      try {
+        const exifData = await exifrParser(selectedFile);
+        console.log("EXIF Data:", exifData);
+        if (exifData?.DateTimeOriginal) {
+          photoTakenDate = new Date(exifData.DateTimeOriginal).toISOString();
+        } else if (exifData?.CreateDate) {
+          photoTakenDate = new Date(exifData.CreateDate).toISOString();
+        }
+
+        if (typeof exifData?.latitude === 'number' && typeof exifData?.longitude === 'number') {
+          coordinates = [exifData.latitude, exifData.longitude];
+        }
+      } catch (e) {
+        console.warn("EXIF parsing failed or some fields missing:", e);
+      }
+
+      const metadataToSign = {
+        userEOA: activeWallet.address as Hex,
+        thumbnailHash: thumbnailHash,
+      };
+
+      const metadataString = JSON.stringify(metadataToSign);
+      console.log("Metadata to sign for Arweave:", metadataString);
+
+      const provider = await activeWallet.getEthereumProvider();
+      const client = createWalletClient({
+        account: activeWallet.address as Hex,
+        chain: optimismSepolia, 
+        transport: custom(provider)
+      });
+
+      const signature = await client.signMessage({
+        account: activeWallet.address as Hex,
+        message: metadataString 
+      });
+
+      const preparedData = { metadataToSign, metadataString, signature: signature, file: selectedFile };
+      // setArweaveUploadData(preparedData); // Still set state for other UI elements if needed
+      setFeedbackMessage(`Successfully prepared and signed Arweave data (Simplified)! Signature: ${signature.substring(0,10)}...`);
+      console.log("Arweave Data Prepared (Simplified):", preparedData);
+      return preparedData;
+
+    } catch (e: any) {
+      console.error("Error preparing or signing Arweave data:", e);
+      setError(`Error preparing/signing Arweave data: ${e.message}`);
+      setFeedbackMessage("Failed to prepare and sign Arweave data.");
+      return null;
+    }
+  };
+
   const renderPrivyAuth = () => {
     if (!ready) return <p className="text-center text-gray-600">Loading Privy...</p>;
     if (authenticated) {
@@ -631,6 +857,21 @@ export default function HomePage() {
           </div>
         )}
       </div>
+      <button onClick={handleTestEOASign} disabled={!ready || !authenticated || isProcessing} className="privy-button">Test EOA Sign</button>
+      {eoaSignature && <p style={{ wordBreak: 'break-all' }}>EOA Signature: {eoaSignature}</p>}
+
+      <button onClick={handlePrepareAndSignArweaveData} disabled={!ready || !authenticated || !selectedFile || !thumbnailHash || isProcessing || !exifrParser} className="privy-button mt-2">Prepare & Sign Arweave Data</button>
+      {arweaveUploadData && <p style={{ wordBreak: 'break-all' }}>Arweave Data Prepared (sig: {arweaveUploadData.signature.substring(0,10)}...)</p>}
+
+      <div className="w-full max-w-xl mt-4 p-4 bg-white rounded-lg shadow-md">
+        <h3 className="text-lg font-semibold mb-2 text-gray-700">Irys Upload Approval Status:</h3>
+        {irysApprovalLoading && <p className="text-sm text-yellow-600">Checking Irys approval...</p>}
+        {irysApprovalError && <p className="text-sm text-red-600">Error: {irysApprovalError}</p>}
+        {isIrysApproved && irysDelegationId && <p className="text-sm text-green-600">Approved! Delegation ID: {irysDelegationId.substring(0,10)}...</p>}
+        {isIrysApproved && !irysDelegationId && <p className="text-sm text-green-600">Approved!</p>}
+        {!irysApprovalLoading && !isIrysApproved && !irysApprovalError && authenticated && <p className="text-sm text-gray-500">Approval not yet granted or checked.</p>}
+      </div>
+
     </main>
   );
 }

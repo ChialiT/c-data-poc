@@ -1,0 +1,14 @@
+{
+  "userApprovals": [
+    {
+      "userAddress": "0xE741D856a108Ec5D5ae0119dEBa587d8D1fba4A3",
+      "privyUserId": "did:privy:cmb8pxgq90063l60lc1jyex4k",
+      "privySocialProvider": "privy",
+      "delegationId": "server-ready-for-0xE741D856a108Ec5D5ae0119dEBa587d8D1fba4A3-1748621750302",
+      "expiresAt": 1751213750302,
+      "createdAt": 1748621750303,
+      "lastUpdatedAt": 1748621750303,
+      "status": "active"
+    }
+  ]
+}

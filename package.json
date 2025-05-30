@@ -1,7 +1,9 @@
 {
 	"dependencies": {
 		"@account-kit/smart-contracts": "^4.35.1",
-		"ethers": "^6.14.3"
+		"bignumber.js": "^9.3.0",
+		"ethers": "^6.14.3",
+		"lowdb": "^7.0.1"
 	},
 	"pnpm": {
 		"overrides": {

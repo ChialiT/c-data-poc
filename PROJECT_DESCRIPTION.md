@@ -8,180 +8,188 @@ This Proof of Concept (POC) demonstrates a decentralized crowd-sourced data coll
 ### Core Value Proposition
 
 - **Zero-friction user onboarding**: Users don't need existing crypto wallets or gas tokens
-- **Verifiable data provenance**: All submissions are cryptographically attested
+- **Verifiable data provenance**: All submissions are cryptographically attested with user signatures
 - **Permanent storage**: Photos and metadata stored on Arweave for long-term accessibility
 - **Transparent data collection**: All attestations are publicly verifiable on-chain
+- **True ownership**: Users cryptographically sign their data while enjoying gasless experience
 
 ### Technology Stack
 
 **Frontend & User Management:**
-- Privy (Account Abstraction & wallet generation)
+- Privy (Account Abstraction & dual wallet generation: EOA + Smart Wallet)
 - React/Next.js web application
+- Client-side image processing and thumbnail generation
 
 **Blockchain Infrastructure:**
 - Optimism Sepolia (testnet for EAS attestations)
 - Ethereum Attestation Service (EAS) for data verification
-- Gas sponsorship for seamless transactions
+- Gas sponsorship via paymaster for seamless transactions
 
 **Decentralized Storage:**
 - Arweave (devnet) for permanent photo storage
-- Irys for simplified Arweave uploads with sponsorship
+- Irys for simplified Arweave uploads with client-side signing and server funding
 
 **Backend Services:**
-- Node.js server for thumbnail generation and metadata caching
-- Database for indexing and search capabilities
+- Node.js server for thumbnail storage and API endpoints
+- Irys auto-approval system for seamless user authorization
+- Simple database for basic data persistence
 
 ### Data Flow Architecture
 
-1. **User Onboarding**: Privy generates embedded wallet
-2. **Content Capture**: User selects photo (any size)
-3. **Preview Optimization**: App generates thumbnail for fast preview/interface display
-4. **Metadata Extraction**: App extracts metadata from original photo (timestamp, GPS coordinates)
-5. **User Review**: User confirms photo and metadata before submission
-6. **Submission Processing**: App optimizes photo (min 512px, max 1920px) for upload
-7. **Authorization Check**: Backend validates user eligibility and upload permissions
-8. **Server-Side Signing**: Backend signs upload request using controlled private key
-9. **Storage**: Irys uploads optimized photo to Arweave (sponsored via server signing)
-10. **Thumbnail Storage**: Server stores thumbnail locally for fast access
-11. **Attestation**: EAS creates on-chain record linking metadata to Arweave TX ID (gas sponsored)
-12. **Verification**: Data becomes publicly verifiable and queryable
+1. **User Onboarding**: Privy generates dual wallets (EOA + Smart Wallet)
+2. **Auto-Approval**: System automatically approves Privy users for Irys uploads
+3. **Content Capture**: User selects photo (any size)
+4. **Preview Generation**: App generates thumbnail for fast interface display
+5. **Metadata Extraction**: App extracts metadata from original photo (timestamp, GPS coordinates)
+6. **User Review**: User confirms photo and metadata before submission
+7. **Dual-Wallet Signing**: 
+   - **EOA Wallet**: User signs Arweave upload transaction for data ownership
+   - **Smart Wallet**: Creates sponsored EAS attestation via paymaster
+8. **Arweave Upload**: Server-funded Irys node processes client-signed transaction
+9. **Thumbnail Storage**: Server stores thumbnail locally for fast access
+10. **EAS Attestation**: Smart wallet creates sponsored on-chain record linking metadata to Arweave TX ID
+11. **Verification**: Data becomes publicly verifiable and queryable
 
 ### Captured Data Schema
 
 **EAS Attestation Fields:**
 - `photoTakenDate`: ISO timestamp from EXIF data
 - `coordinates`: GPS coordinates as array [latitude, longitude] (decimal degrees)
-- `arweaveTxId`: Permanent storage reference for optimized photo (512px-1920px)
+- `arweaveTxId`: Permanent storage reference for photo
 - `thumbnailHash`: Client-generated thumbnail identifier
+- `userEOA`: EOA address that signed the Arweave upload (for provenance)
 
 ---
 
 ## Development Phases
 
-### Phase 1: Basic Server-Side Signing (EOA Wallet)
-**Goal**: Establish core authorization and server-side signing infrastructure
+### Phase 1: Client-Side Signing & Dual Wallet Setup
+**Goal**: Establish dual wallet architecture with client-side Arweave signing
 
 **Scope:**
 - Simple web interface for photo selection (any size)
 - **Client-side thumbnail generation** for fast preview in interface
-- **Client-side photo optimization** at submission time (min 512px, max 1920px)
-- Server-side signing implementation for controlled uploads
-- Basic user authorization (simple allowlist for testing)
-- Direct Arweave upload using MetaMask wallet for initial validation
+- **Dual wallet setup**: Configure Privy for both EOA and Smart Wallet
+- **Client-side Arweave signing** with EOA wallet
+- **Server-funded Irys integration** for upload processing
 - Basic file validation and error handling
 
 **Deliverables:**
 - Upload interface with file selection and immediate thumbnail preview
-- Photo optimization logic (min 512px, max 1920px) triggered at submission
+- Privy dual wallet configuration (EOA + Smart Wallet)
+- Client-side Arweave transaction signing with EOA
+- Server-funded Irys node setup and integration
 - Thumbnail generation for interface preview
-- Backend API routes for server-side signing (`/api/publicKey`, `/api/signData`)
-- Simple user authorization system (allowlist-based for testing)
-- Arweave integration using Irys toolkit with server-controlled private key
 - Basic error handling and transaction confirmation
 
 **Success Criteria:**
 - Users can select photos of any size with fast preview
-- Photos are optimized to 512px-1920px range only at submission time
+- Dual wallets (EOA + Smart Wallet) properly initialized
+- EOA successfully signs Arweave upload transactions
+- Server-funded Irys node processes client-signed transactions
+- Photos upload to Arweave devnet with user signatures
 - Thumbnails generated for fast interface display
-- Backend successfully signs upload requests for approved users
-- Optimized photos upload to Arweave devnet via server-side signing
-- Unauthorized users are properly blocked from uploads
-- Server maintains secure private key management
 
 ---
 
-### Phase 2: Privy Integration & Auto-Approval
-**Goal**: Replace EOA wallet requirement with seamless Privy onboarding and automatic approval
+### Phase 2: Auto-Approval & Seamless Authentication
+**Goal**: Implement Privy auto-approval system for frictionless user experience
 
 **Scope:**
-- Integrate Privy SDK for wallet generation
-- Implement automatic approval for all Privy-authenticated users
+- Integrate Privy SDK for seamless wallet generation
+- **Implement Irys auto-approval** for all Privy-authenticated users
 - Social login options (Google, Twitter, email)
-- Embedded wallet management
-- Automatic authorization upon successful Privy onboarding
+- **Automatic delegation setup** for Irys uploads
+- Zero manual approval workflow
 
 **Deliverables:**
-- Privy authentication flow
-- Automatic approval system triggered by successful Privy onboarding
-- User dashboard showing wallet status (always approved after onboarding)
-- Gasless upload functionality via server signing
-- Streamlined user flow with zero manual approval steps
+- Privy authentication flow with social login options
+- **Irys auto-approval API** triggered by successful Privy authentication
+- Automatic delegation system for approved users
+- User dashboard showing approval status (auto-approved)
+- Seamless upload authorization without manual intervention
 
 **Success Criteria:**
 - Users onboard without existing crypto wallets
-- All Privy-authenticated users are automatically approved for uploads
-- Upload transactions are fully sponsored for all users
-- Smooth Web2-like user experience with no approval delays
-- Zero manual intervention required
+- **All Privy users automatically approved** for Irys uploads upon login
+- **Irys delegation created automatically** for new users
+- Smooth Web2-like user experience with instant upload capability
+- Zero manual intervention required for user approval
 
 ---
 
-### Phase 3: Metadata Extraction & EAS Integration
+### Phase 3: EAS Integration & Complete Data Pipeline
 **Goal**: Add comprehensive metadata capture and blockchain attestations
 
 **Scope:**
-- **Client-side EXIF data extraction** for timestamps and GPS coordinates from original photo
+- **Client-side EXIF data extraction** for timestamps and GPS coordinates
 - EAS schema definition and deployment on Optimism Sepolia
-- Automated attestation workflow
+- **Smart wallet + paymaster integration** for sponsored EAS transactions
 - **Server-side thumbnail storage** and serving
-- Link Arweave uploads with EAS attestations
+- Complete dual-signature workflow (Arweave + EAS)
 
 **Deliverables:**
-- **Frontend metadata extraction** service using EXIF data from original photo
-- EAS smart contract deployment and schema
-- Automated attestation creation linking photo metadata to Arweave TX
+- **Frontend metadata extraction** service using EXIF data
+- EAS smart contract deployment and schema configuration
+- **Paymaster integration** for sponsored EAS attestations
+- **Smart wallet EAS transaction** creation and submission
 - **Server endpoints for thumbnail storage and retrieval**
-- Enhanced frontend processing pipeline: 
-  - Select photo (any size) → generate thumbnail for preview → extract metadata → user review → optimize photo at submission (512px-1920px) → upload
+- Complete dual-wallet workflow implementation
 
 **Success Criteria:**
 - Automatic extraction of photo timestamp and GPS coordinates from original file
-- Fast thumbnail preview for any size photo selection
-- Photo optimization only occurs at submission time for better UX
-- EAS attestations successfully created for each upload
+- **EAS attestations successfully created via sponsored smart wallet transactions**
+- **Dual-signature verification**: Both Arweave (EOA) and EAS (Smart Wallet) signatures
 - Metadata accurately captured and verifiable on-chain
 - Thumbnails stored on server and served efficiently
-- Complete data pipeline: photo selection → preview → metadata → submission optimization → Arweave → EAS
+- Complete data pipeline: photo selection → preview → metadata → EOA signature → Arweave → Smart Wallet → EAS
 
 ---
 
-### Phase 4: Automatic Approval & Production Readiness
-**Goal**: Streamline user experience with automatic approval and ensure system reliability
+### Phase 4: Production Readiness & System Optimization
+**Goal**: Optimize system performance and ensure production reliability
 
 **Scope:**
-- Implement automatic approval for all Privy-onboarded users
-- Remove manual approval bottlenecks
-- System optimization and reliability improvements
-- Basic data storage and retrieval (no complex admin tools)
+- System performance optimizations
+- **Auto-approval system refinement**
+- Error handling and recovery mechanisms
+- Basic monitoring and health checks
+- Data persistence and retrieval optimization
 
 **Deliverables:**
-- Automatic approval system for new Privy users
-- Simplified user status management (approved by default)
-- System performance optimizations
-- Basic data persistence and simple retrieval
-- Simple monitoring and health checks
+- **Refined auto-approval system** with robust error handling
+- System performance optimizations for concurrent users
+- Comprehensive error recovery mechanisms
+- Basic monitoring dashboard for system health
+- Optimized data storage and retrieval
 
 **Success Criteria:**
-- New users automatically approved upon Privy onboarding
-- Zero manual intervention required for user approval
-- End-to-end workflow: onboard → upload → attest works seamlessly
+- **Auto-approval system reliability > 99%**
+- End-to-end dual-wallet workflow completion rate > 95%
 - System handles concurrent users reliably
+- Robust error handling for both wallet types
+- Zero manual intervention required for standard operations
 
 ---
 
 ## Technical Implementation Details
 
+### Dual Wallet Architecture
+- **EOA Wallet (Data Signing)**: Used for signing Arweave uploads to establish data ownership and provenance
+- **Smart Wallet (Transaction Sponsorship)**: Used for gas-sponsored EAS attestations via paymaster
+- **Seamless UX**: Users interact with single interface, system handles wallet switching automatically
+
 ### Gas Sponsorship Strategy
-- **Arweave Uploads**: Server-side signing pattern where backend maintains Irys-funded account and signs upload requests for authorized users
-- **EAS Attestations**: Implement relayer service using account abstraction paymaster patterns
-- **Budget Management**: Monitor and alert on sponsorship balance levels
-- **Authorization Control**: Only approved users can trigger sponsored uploads
+- **Arweave Uploads**: Client EOA signs upload transactions; server-funded Irys node pays storage costs
+- **EAS Attestations**: Smart wallet creates sponsored transactions via paymaster integration
+- **Auto-Approval**: Irys delegation system automatically approves Privy users for uploads
+- **Budget Management**: Monitor both Irys funding and paymaster balance levels
 
 ### Backend Services (Node.js)
 
 **Core Functions:**
-- User authorization and approval management
-- **Server-side signing endpoints** (`/api/publicKey`, `/api/signData`, `/api/lazyFund`)
+- **Irys auto-approval management** for Privy users
+- **Dual wallet coordination** between EOA and Smart Wallet transactions
 - **Thumbnail storage and serving** from client-generated thumbnails
 - Data validation and sanitization
 - EAS attestation formatting and submission
@@ -189,61 +197,68 @@ This Proof of Concept (POC) demonstrates a decentralized crowd-sourced data coll
 
 **API Endpoints:**
 ```
-GET  /api/publicKey       - Get server's public key for Irys signing
-POST /api/signData        - Sign upload data (auto-approves Privy users)
-POST /api/lazyFund        - Ensure sufficient Irys balance (optional)
-POST /upload/prepare      - Validate submission data and metadata
-POST /upload/submit       - Trigger Arweave upload with optimized photo and EAS attestation
-POST /thumbnail/store     - Store client-generated thumbnail (for interface preview)
-GET  /thumbnail/{id}      - Retrieve stored thumbnail
-GET  /data/{txId}         - Retrieve specific submission details
-GET  /health              - System health check
+POST /api/irys/auto-approve  - Auto-approve Privy users for Irys uploads
+GET  /api/user/approval      - Check user approval status
+POST /upload/prepare         - Validate submission data and metadata
+POST /upload/arweave         - Process client-signed Arweave transaction
+POST /upload/eas             - Create sponsored EAS attestation
+POST /thumbnail/store        - Store client-generated thumbnail
+GET  /thumbnail/{id}         - Retrieve stored thumbnail
+GET  /data/{txId}           - Retrieve specific submission details
+GET  /health                - System health check
 ```
 
+### Auto-Approval Implementation
+- **Trigger**: Automatic upon successful Privy authentication
+- **Irys Delegation**: Creates delegation allowing user to upload via server-funded node
+- **No Limits**: Open delegation for POC (limits can be added later)
+- **Revocable**: System can revoke approvals if needed
+
 ### Error Handling & Recovery
+- **Dual wallet failures**: Fallback mechanisms for each wallet type
 - Failed Arweave uploads: Retry mechanism with exponential backoff
 - EAS attestation failures: Queue system for retry attempts
+- **Auto-approval failures**: Retry logic for Irys delegation creation
 - Network issues: Graceful degradation with user feedback
-- Invalid metadata: Clear validation messages and correction prompts
 
 ### Security Considerations
 - Input validation for all uploaded files
 - Rate limiting on API endpoints
 - Metadata sanitization to prevent injection attacks
-- Wallet security through Privy's battle-tested infrastructure
-- **Server-side signing security**: Private key protection with secure storage (HSM/environment variables)
-- **Authorization controls**: Multi-layered approval system to prevent unauthorized uploads
-- **Audit logging**: Track all authorization requests and upload activities
+- **Dual wallet security**: EOA for data signing, Smart Wallet for sponsored transactions
+- **Auto-approval controls**: Irys delegation system prevents unauthorized access
+- **Audit logging**: Track all approval, upload, and attestation activities
 
 ---
 
 ## Success Metrics & Testing
 
 **Phase 1 Metrics:**
-- Successful server-side signing implementation > 99%
-- User authorization system functionality > 95%
-- File uploads to Arweave devnet success rate > 95%
-- Private key security maintained (no breaches)
+- Dual wallet setup success rate > 99%
+- Client-side Arweave signing implementation > 99%
+- Server-funded Irys processing success rate > 95%
+- EOA signature verification rate > 99%
 
 **Phase 2 Metrics:**
-- User onboarding completion rate > 80%
-- Privy authentication integration success > 98%
-- Sponsored transaction success rate > 98% for approved users
-- User retention after first upload > 60%
+- **Irys auto-approval success rate > 99%**
+- User onboarding completion rate > 90%
+- **Automatic delegation creation success > 98%**
+- User retention after first upload > 70%
+- Zero manual approval interventions
 
 **Phase 3 Metrics:**
 - Client-side metadata extraction accuracy > 95%
-- Fast thumbnail generation for interface preview > 99%
-- Photo optimization at submission time success rate > 99%
-- EAS attestation verification rate 100%
+- **Dual-signature workflow completion rate > 95%**
+- **Smart wallet EAS attestation success rate > 98%**
+- **Paymaster sponsorship success rate > 99%**
 - End-to-end workflow completion rate > 90%
-- Thumbnail storage and retrieval success rate > 99%
 
 **Phase 4 Metrics:**
-- Automatic approval system reliability > 99%
-- End-to-end user flow completion rate > 95%
+- **Auto-approval system reliability > 99%**
+- **Dual-wallet coordination success rate > 98%**
 - System uptime and reliability > 99%
-- Zero manual approval interventions required
+- Concurrent user handling capability verified
+- Error recovery success rate > 95%
 
 ---
 
@@ -254,25 +269,21 @@ GET  /health              - System health check
 - **Advanced Analytics**: Spatial and temporal data analysis tools
 - **Mobile Applications**: Native iOS/Android apps with enhanced camera integration
 - **Mainnet Deployment**: Production launch on Ethereum mainnet and Arweave mainnet
+- **Advanced Auto-Approval**: ML-based user scoring and dynamic limits
 
 ---
 
 ## Resource Requirements
 
-**Development Timeline**: 6-8 weeks total
-- Phase 1: 1-2 weeks
-- Phase 2: 2 weeks  
-- Phase 3: 2-3 weeks
-- Phase 4: 1-2 weeks
 
 **Key Dependencies:**
-- Privy SDK documentation and support
-- Irys service reliability and devnet availability
+- Privy SDK dual wallet support
+- Irys delegation and auto-approval API reliability
 - EAS schema deployment on Optimism Sepolia
-- Arweave devnet stability
+- Paymaster service availability and reliability
 
 **Budget Considerations:**
-- Arweave storage costs (sponsored uploads)
-- Optimism Sepolia gas costs (sponsored attestations)
+- Arweave storage costs (server-funded via Irys)
+- Optimism Sepolia gas costs (paymaster-sponsored)
+- Irys delegation and approval system costs
 - Backend hosting and database costs
-- Development and testing resources 

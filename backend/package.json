@@ -15,12 +15,17 @@
   "packageManager": "pnpm@10.5.2",
   "dependencies": {
     "@ethereum-attestation-service/eas-sdk": "^2.7.0",
-    "@irys/sdk": "^0.2.11",
+    "@irys/upload": "^0.0.15",
+    "@irys/upload-ethereum": "^0.0.16",
     "arweave": "^1.15.7",
+    "bignumber.js": "^9.3.0",
     "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
-    "multer": "^2.0.0"
+    "lowdb": "1.0.0",
+    "multer": "^2.0.0",
+    "viem": "^2.30.5"
   },
   "devDependencies": {
     "@types/cors": "^2.8.18",

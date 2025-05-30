@@ -1,15 +1,41 @@
-import express, { Express, Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
+import path from 'path'; // Import path for absolute path logging
+
+// === BEGIN DOTENV CONFIG ===
+// Ensure this is the VERY FIRST executable code to load environment variables
+const envPath = path.resolve(__dirname, '../../.env.local'); // Get absolute path for logging
+console.log(`[dotenv] Attempting to load .env file from: ${envPath}`);
+const envConfig = dotenv.config({ path: envPath });
+
+if (envConfig.error) {
+  console.error('[dotenv] Error loading .env file:', envConfig.error);
+} else {
+  // Avoid logging all parsed variables directly in production or if sensitive
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[dotenv] .env file loaded. Parsed keys:', envConfig.parsed ? Object.keys(envConfig.parsed) : 'No .env file found or empty');
+  }
+  // Optional: Add specific checks for critical variables if needed *after* loading
+  if (process.env.NODE_ENV !== 'test') { // Don't do this for tests as they might set vars differently
+    if (!process.env.SERVER_EVM_PRIVATE_KEY) { // Check after dotenv.config has run
+        console.warn('[dotenv] SERVER_EVM_PRIVATE_KEY was NOT found after dotenv.config().');
+    }
+    if (!process.env.IRYS_PRIVATE_KEY) { // Check after dotenv.config has run
+        console.warn('[dotenv] IRYS_PRIVATE_KEY was NOT found after dotenv.config().');
+    }
+  }
+}
+// === END DOTENV CONFIG ===
+
+import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import Irys from '@irys/sdk';
 import multer from 'multer';
 import { ethers, Wallet, JsonRpcProvider, parseUnits, formatUnits, isAddress, NonceManager, BigNumberish } from 'ethers';
 import { EAS, SchemaEncoder, NO_EXPIRATION } from "@ethereum-attestation-service/eas-sdk";
+import irysApiRouter from './routes/irysApi'; // Adjust path if your file is elsewhere
+import { getUploader } from './services/irysService'; // ---> ADD THIS IMPORT
 
 // Remove Arweave direct import if not used elsewhere, or keep if arweave-js direct calls are made
 // import Arweave from 'arweave'; 
-
-dotenv.config({ path: '../.env.local' });
 
 const app: Express = express();
 const port = process.env.PORT || 3001;
@@ -19,48 +45,59 @@ const upload = multer({ storage: storage });
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// EVM Wallet for Irys Payments
+// Mount the Irys API router
+app.use('/api/irys', irysApiRouter);
+
+// EVM Wallet for Irys Payments (now intended for Ethereum Mainnet)
 const serverEvmPrivateKey = process.env.SERVER_EVM_PRIVATE_KEY;
-const baseSepoliaRpcUrl = process.env.BASE_SEPOLIA_RPC_URL;
-const irysPaymentToken = process.env.IRYS_PAYMENT_TOKEN; // Should be 'base-eth'
+const ethereumMainnetRpcUrl = process.env.ETHEREUM_MAINNET_RPC_URL; // Changed from baseSepoliaRpcUrl
+const irysPaymentToken = process.env.IRYS_PAYMENT_TOKEN; // Should be 'ethereum' for mainnet
 const irysNetwork = process.env.IRYS_NETWORK || 'devnet'; // Irys's own network env
 
-// EAS Configuration
-const EAS_CONTRACT_ADDRESS_BASE_SEPOLIA = process.env.EAS_SCHEMA_REGISTRY_ADDRESS_BASE_SEPOLIA || "0x4200000000000000000000000000000000000021"; // Default if not in .env
-const EAS_SCHEMA_UID = process.env.EAS_SCHEMA_UID_BASE_SEPOLIA;
+// EAS Configuration (remains Optimism Sepolia for client-side EAS)
+// These might be primarily for client-side reference if backend EAS ops are deprecated
+const EAS_CONTRACT_ADDRESS_OP_SEPOLIA = process.env.EAS_CONTRACT_ADDRESS_OP_SEPOLIA || "0x4200000000000000000000000000000000000021";
+const EAS_SCHEMA_UID_OP_SEPOLIA = process.env.EAS_SCHEMA_UID_OP_SEPOLIA;
 
 if (!serverEvmPrivateKey) {
-    console.error("SERVER_EVM_PRIVATE_KEY is not set. Check .env.local");
+    console.error("SERVER_EVM_PRIVATE_KEY is not set. This account needs ETH on Ethereum Mainnet for Irys funding. Check .env.local");
     process.exit(1);
 }
-if (!baseSepoliaRpcUrl) {
-    console.error("BASE_SEPOLIA_RPC_URL is not set. Check .env.local");
+if (!ethereumMainnetRpcUrl) {
+    console.error("ETHEREUM_MAINNET_RPC_URL is not set. Check .env.local");
     process.exit(1);
 }
 if (!irysPaymentToken) {
-    console.error("IRYS_PAYMENT_TOKEN is not set. Check .env.local (e.g., base-eth)");
+    console.error("IRYS_PAYMENT_TOKEN is not set (e.g., 'ethereum'). Check .env.local");
     process.exit(1);
 }
-if (!EAS_SCHEMA_UID) {
-    console.error("EAS_SCHEMA_UID_BASE_SEPOLIA is not set in .env.local. Please add it.");
-    process.exit(1);
-}
+// Keep EAS config checks if any backend component might still use them, or if they are critical for reference
+// if (!EAS_SCHEMA_UID_OP_SEPOLIA) { 
+//     console.error("EAS_SCHEMA_UID_OP_SEPOLIA is not set in .env.local. Please add it.");
+//     process.exit(1);
+// }
 
-let serverEvmWalletSigner: Wallet; // This will be our ethers v6 signer instance
-let baseProvider: JsonRpcProvider;
+let serverEvmWalletSigner: Wallet; 
+let mainnetProvider: JsonRpcProvider; // Renamed from baseProvider
+
+// Export for use in other services if needed (though irysService directly uses env vars now)
+export let exportedServerEvmWalletSigner: Wallet;
+export let exportedMainnetProvider: JsonRpcProvider; // Renamed
 
 try {
-    // Initialize provider for Base Sepolia
-    baseProvider = new JsonRpcProvider(baseSepoliaRpcUrl);
-    // Create a wallet instance from the private key
+    // Initialize provider for Ethereum Mainnet
+    mainnetProvider = new JsonRpcProvider(ethereumMainnetRpcUrl);
     const rawWallet = new Wallet(serverEvmPrivateKey);
-    // Connect the wallet to the provider to create a Signer
-    serverEvmWalletSigner = rawWallet.connect(baseProvider);
+    serverEvmWalletSigner = rawWallet.connect(mainnetProvider);
     
-    console.log(`[server]: EVM Wallet loaded and connected for address: ${serverEvmWalletSigner.address}`);
+    exportedServerEvmWalletSigner = serverEvmWalletSigner;
+    exportedMainnetProvider = mainnetProvider; // Renamed
+    
+    console.log(`[server]: EVM Wallet loaded and connected for address: ${serverEvmWalletSigner.address} (Intended for Ethereum Mainnet)`);
 } catch (error) {
-    console.error("Failed to initialize EVM wallet from SERVER_EVM_PRIVATE_KEY or connect to provider:", error);
+    console.error("Failed to initialize EVM wallet from SERVER_EVM_PRIVATE_KEY or connect to Ethereum Mainnet provider:", error);
     process.exit(1);
 }
 
@@ -78,8 +115,12 @@ if (arweaveKeyRaw) {
     console.warn("ARWEAVE_KEY_JWK not found. If not using for direct Arweave ops, this is fine.");
 }
 
-app.get('/api/health', (req: Request, res: Response) => {
-    res.status(200).json({ status: 'UP', message: 'Backend is running' });
+app.get('/', (req, res) => {
+  res.status(200).send('C-Data POC Backend is running!');
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Now returns the server's EVM public address used for Irys payments
@@ -98,7 +139,6 @@ const ALLOWED_USERS = ['user1_temp_id', 'user2_temp_id'];
 app.post('/api/signData', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { userId, dataToSign } = req.body; 
-        // Use ethers.isAddress for validation (imported directly)
         if (!userId || !ALLOWED_USERS.includes(userId) && !isAddress(userId)) { 
             res.status(403).json({ message: 'Forbidden: User not authorized' });
             return;
@@ -109,21 +149,22 @@ app.post('/api/signData', async (req: Request, res: Response, next: NextFunction
         }
         console.log(`User '${userId}' authorized. Received JSON data to upload:`, dataToSign);
         
-        const irys = new Irys({
-            network: irysNetwork, 
-            token: irysPaymentToken, 
-            key: serverEvmPrivateKey, // Irys SDK can take a private key directly
-            config: { providerUrl: baseSepoliaRpcUrl }
-        });
+        const uploader = await getUploader(); // Use the new service
+
         const dataBuffer = Buffer.from(JSON.stringify(dataToSign));
         const tags = [{ name: "Content-Type", value: "application/json" }];
         console.log(`Attempting to upload JSON data to Irys (${irysNetwork}, paying with ${irysPaymentToken}) with tags:`, tags);
-        const receipt = await irys.upload(dataBuffer, { tags });
+        
+        // The new uploader.uploadData() might be the method for raw data/buffers
+        // Or uploader.upload() if it's smart enough. Check new SDK docs for exact method.
+        // Assuming uploadData for now based on common patterns for new SDKs
+        const receipt = await uploader.uploadData(dataBuffer, { tags });
+        
         console.log(`JSON Data uploaded to Irys. Receipt ID: ${receipt.id}`);
         res.status(200).json({
             message: 'JSON Data uploaded to Arweave via Irys successfully (paid with EVM token)',
             arweaveTxId: receipt.id,
-            timestamp: receipt.timestamp
+            timestamp: receipt.timestamp // Check if new SDK receipt has timestamp directly
         });
     } catch (error) {
         console.error('Error in /api/signData:', error);
@@ -133,55 +174,78 @@ app.post('/api/signData', async (req: Request, res: Response, next: NextFunction
 
 app.post('/api/uploadPhoto', upload.single('photoFile'), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const userId = req.body.userId;
-        // Use ethers.isAddress for validation
-        if (!userId || !ALLOWED_USERS.includes(String(userId)) && !isAddress(String(userId))) { 
-            res.status(403).json({ message: 'Forbidden: User not authorized' });
+        // Extract signed metadata and signature from the request body
+        const { metadataToSign, signature, userEOA: clientUserEOA } = req.body;
+
+        // Basic validation for new fields
+        if (!metadataToSign || typeof metadataToSign !== 'string') {
+            res.status(400).json({ success: false, error: 'Bad Request: metadataToSign (string) is required.' });
             return;
         }
+        if (!signature || typeof signature !== 'string') {
+            res.status(400).json({ success: false, error: 'Bad Request: signature (string) is required.' });
+            return;
+        }
+        if (!clientUserEOA || !isAddress(clientUserEOA)) {
+             res.status(400).json({ success: false, error: 'Bad Request: userEOA (address string) is required.' });
+            return;
+        }
+
+        // TODO: Consider stricter validation of the signature against the metadataToSign and userEOA if needed for security.
+        // For now, we assume the client has handled this and we are just storing the provided signature.
+
         if (!req.file) {
-            res.status(400).json({ message: 'Bad Request: No photo file provided.' });
+            res.status(400).json({ success: false, error: 'Bad Request: No photo file provided.' });
             return;
         }
         const photoFile = req.file;
-        console.log(`User '${userId}' authorized. Received photo to upload: ${photoFile.originalname}, Size: ${photoFile.size}, Type: ${photoFile.mimetype}`);
+        console.log(`Received photo to upload: ${photoFile.originalname}, Size: ${photoFile.size}, Type: ${photoFile.mimetype}`);
+        console.log(`User EOA (from client): ${clientUserEOA}`);
+        console.log(`Signed Metadata (string): ${metadataToSign}`);
+        console.log(`Signature: ${signature}`);
         
-        const irys = new Irys({
-            network: irysNetwork, 
-            token: irysPaymentToken, 
-            key: serverEvmPrivateKey,
-            config: { providerUrl: baseSepoliaRpcUrl }
-        });
+        const uploader = await getUploader();
 
         try {
-            const balanceAtomic = await irys.getLoadedBalance(); 
-            console.log(`Irys node balance for EVM key (token: ${irysPaymentToken}): ${balanceAtomic.toString()} atomic units`);
-            const balanceInStandardUnit = parseFloat(formatUnits(balanceAtomic.toString(), 18)); 
-            console.log(`Irys node balance in standard units: ${balanceInStandardUnit.toFixed(6)} ${irysPaymentToken}`);
-            
+            const balanceAtomic = await uploader.getLoadedBalance(); 
+            const balanceInStandardUnit = uploader.utils.fromAtomic(balanceAtomic);
+            console.log(`Irys node balance: ${balanceAtomic.toString()} atomic units (${balanceInStandardUnit.toString()} ${irysPaymentToken})`);
             if (balanceAtomic.isZero()) { 
-                console.warn("Warning: Irys node balance for EVM key is zero.");
+                console.warn("Warning: Irys node balance is zero. Upload will likely fail.");
             }
         } catch (balanceError) {
-            console.error("Error fetching Irys node balance for EVM key:", balanceError);
+            console.error("Error fetching Irys node balance:", balanceError);
+            // Decide if you want to proceed if balance check fails
         }
 
-        const tags = [{ name: "Content-Type", value: photoFile.mimetype }];
+        const tags = [
+            { name: "Content-Type", value: photoFile.mimetype },
+            { name: "App-Name", value: "C-Data-POC" }, // Example app tag
+            { name: "User-EOA", value: clientUserEOA },
+            { name: "Signed-Metadata-JSON", value: metadataToSign }, // Store the JSON string of metadata
+            { name: "EOA-Signature", value: signature } // Store the EOA signature
+        ];
         console.log(`Attempting to upload photo to Irys (${irysNetwork}, paying with ${irysPaymentToken}) with tags:`, tags);
-        const receipt = await irys.upload(photoFile.buffer, { tags });
+        
+        const receipt = await uploader.upload(photoFile.buffer, { tags });
         console.log(`Photo uploaded to Irys. Receipt ID: ${receipt.id}`);
         
         res.status(200).json({
-            message: 'Photo uploaded to Arweave via Irys successfully (paid with EVM token)',
+            success: true, // Add success field
+            message: 'Photo uploaded to Arweave via Irys successfully',
             arweaveTxId: receipt.id,
             originalName: photoFile.originalname,
             mimeType: photoFile.mimetype,
             size: photoFile.size,
-            timestamp: receipt.timestamp
+            timestamp: receipt.timestamp 
         });
-    } catch (error) {
+    } catch (error: any) { // Explicitly type error as any to access .message
         console.error('Error in /api/uploadPhoto:', error);
-        next(error);
+        // Ensure a JSON response for errors too
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, error: error.message || 'Internal server error during photo upload' });
+        }
+        // next(error); // next(error) might send HTML error page if not handled by a dedicated error middleware
     }
 });
 
@@ -192,30 +256,25 @@ app.post('/api/fundIrysNode', async (req: Request, res: Response, next: NextFunc
 
         console.log(`Attempting to fund Irys node with ${amountToFundStr} ${irysPaymentToken}`);
 
-        const irys = new Irys({
-            network: irysNetwork, 
-            token: irysPaymentToken, 
-            key: serverEvmPrivateKey,
-            config: { providerUrl: baseSepoliaRpcUrl }
-        });
+        const uploader = await getUploader(); // Use the new service
 
-        // Use ethers.parseUnits (returns bigint)
-        const amountInAtomicUnits: bigint = parseUnits(amountToFundStr, 18);
+        // Use uploader.utils.toAtomic for converting amount to fund
+        const amountInAtomicUnits = uploader.utils.toAtomic(new BigNumber(amountToFundStr), irysPaymentToken);
 
-        const fundTx = await irys.fund(amountInAtomicUnits.toString()); 
+        const fundTx = await uploader.fund(amountInAtomicUnits.toString()); // fund likely expects string or BigNumber
 
-        // Use ethers.formatUnits
-        const fundedAmountInStandard = formatUnits(fundTx.quantity.toString(), 18);
-        console.log(`Successfully funded Irys node. Amount: ${fundedAmountInStandard} ${irysPaymentToken}, Transaction ID: ${fundTx.id}`);
+        // uploader.utils.fromAtomic for displaying funded amount
+        const fundedAmountInStandard = uploader.utils.fromAtomic(new BigNumber(fundTx.quantity), irysPaymentToken);
+        console.log(`Successfully funded Irys node. Amount: ${fundedAmountInStandard.toString()} ${irysPaymentToken}, Transaction ID: ${fundTx.id}`);
 
-        const balanceAfterFundAtomic = await irys.getLoadedBalance();
-        const balanceInStandardUnit = formatUnits(balanceAfterFundAtomic.toString(), 18);
-        console.log(`New Irys node balance: ${balanceInStandardUnit} ${irysPaymentToken}`);
+        const balanceAfterFundAtomic = await uploader.getLoadedBalance();
+        const balanceInStandardUnit = uploader.utils.fromAtomic(balanceAfterFundAtomic, irysPaymentToken);
+        console.log(`New Irys node balance: ${balanceInStandardUnit.toString()} ${irysPaymentToken}`);
 
         res.status(200).json({
-            message: `Successfully funded Irys node with ${fundedAmountInStandard} ${irysPaymentToken}`,
+            message: `Successfully funded Irys node with ${fundedAmountInStandard.toString()} ${irysPaymentToken}`,
             irysTxId: fundTx.id,
-            newBalance: `${balanceInStandardUnit} ${irysPaymentToken}`
+            newBalance: `${balanceInStandardUnit.toString()} ${irysPaymentToken}`
         });
 
     } catch (error) {
@@ -250,17 +309,17 @@ app.post('/api/createAttestation', async (req: Request, res: Response, next: Nex
             return;
         }
 
-        if (!baseSepoliaRpcUrl) {
-            throw new Error("BASE_SEPOLIA_RPC_URL is not configured.");
+        if (!ethereumMainnetRpcUrl) {
+            throw new Error("ETHEREUM_MAINNET_RPC_URL is not configured.");
         }
-        if (!EAS_SCHEMA_UID) { 
-            throw new Error("EAS_SCHEMA_UID_BASE_SEPOLIA is not configured.");
+        if (!EAS_SCHEMA_UID_OP_SEPOLIA) { 
+            throw new Error("EAS_SCHEMA_UID_OP_SEPOLIA is not configured.");
         }
         if (!serverEvmWalletSigner) { // Ensure signer is initialized
             throw new Error("Server EVM signer not initialized.");
         }
 
-        const eas = new EAS(EAS_CONTRACT_ADDRESS_BASE_SEPOLIA);
+        const eas = new EAS(EAS_CONTRACT_ADDRESS_OP_SEPOLIA);
         // Use NonceManager with the connected signer
         const signerWithNonceManager = new NonceManager(serverEvmWalletSigner);
         eas.connect(signerWithNonceManager);
@@ -273,11 +332,11 @@ app.post('/api/createAttestation', async (req: Request, res: Response, next: Nex
             { name: "thumbnailHash", value: thumbnailHash, type: "string" },
         ]);
 
-        console.log("[/api/createAttestation] Schema UID:", EAS_SCHEMA_UID);
+        console.log("[/api/createAttestation] Schema UID:", EAS_SCHEMA_UID_OP_SEPOLIA);
         console.log("[/api/createAttestation] Encoded attestation data:", encodedData);
 
         const tx = await eas.attest({
-            schema: EAS_SCHEMA_UID,
+            schema: EAS_SCHEMA_UID_OP_SEPOLIA,
             data: {
                 recipient: recipient,
                 expirationTime: NO_EXPIRATION, 
@@ -326,22 +385,17 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 const checkBalanceAtStartup = async () => {
     try {
-        const irys = new Irys({
-            network: irysNetwork,
-            token: irysPaymentToken,
-            key: serverEvmPrivateKey,
-            config: { providerUrl: baseSepoliaRpcUrl }
-        });
-        const irysBalanceAtomic = await irys.getLoadedBalance();
-        // Use ethers.formatUnits (imported directly)
-        const irysBalanceStd = formatUnits(irysBalanceAtomic.toString(), 18); 
-        console.log(`[server]: Connected to Irys (${irysNetwork}). Server Irys Node Balance (${irysPaymentToken}): ${irysBalanceStd}`);
+        const uploader = await getUploader(); // Use the new service
+        const irysBalanceAtomic = await uploader.getLoadedBalance();
+        // Use uploader.utils.fromAtomic for converting balance
+        const irysBalanceStd = uploader.utils.fromAtomic(irysBalanceAtomic, irysPaymentToken);
+        console.log(`[server]: Connected to Irys (${irysNetwork}). Server Irys Node Balance (${irysPaymentToken}): ${irysBalanceStd.toString()}`);
 
-        if (serverEvmWalletSigner && baseProvider) {
+        if (serverEvmWalletSigner && mainnetProvider) {
             // Get balance using the provider
-            const ethBalance : bigint = await baseProvider.getBalance(serverEvmWalletSigner.address);
+            const ethBalance : bigint = await mainnetProvider.getBalance(serverEvmWalletSigner.address);
             // Use ethers.formatUnits
-            console.log(`[server]: Server EVM Wallet (${serverEvmWalletSigner.address}) Base Sepolia ETH Balance: ${formatUnits(ethBalance, 18)} ETH`);
+            console.log(`[server]: Server EVM Wallet (${serverEvmWalletSigner.address}) Ethereum Mainnet ETH Balance: ${formatUnits(ethBalance, 18)} ETH`);
         }
 
     } catch (error) {
@@ -351,7 +405,10 @@ const checkBalanceAtStartup = async () => {
 
 app.listen(port, () => {
     console.log(`[server]: Backend server is running at http://localhost:${port}`);
-    console.log(`[server]: EAS Schema UID: ${EAS_SCHEMA_UID}`);
-    console.log(`[server]: EAS Contract Address (Base Sepolia): ${EAS_CONTRACT_ADDRESS_BASE_SEPOLIA}`);
+    console.log(`[server]: EAS Schema UID (Optimism Sepolia for client): ${EAS_SCHEMA_UID_OP_SEPOLIA}`);
+    console.log(`[server]: EAS Contract Address (Optimism Sepolia for client): ${EAS_CONTRACT_ADDRESS_OP_SEPOLIA}`);
     checkBalanceAtStartup();
-}); 
+});
+
+// Export the app if you need to use it for serverless functions or testing
+// export default app; 
