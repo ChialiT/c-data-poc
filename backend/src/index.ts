@@ -9,7 +9,7 @@ import { ethers, Wallet, JsonRpcProvider, parseUnits, formatUnits, isAddress, No
 // Remove Arweave direct import if not used elsewhere, or keep if arweave-js direct calls are made
 // import Arweave from 'arweave'; 
 
-dotenv.config({ path: '../.env.local' });
+dotenv.config({ path: './.env' });  // Fixed path to point to backend/.env
 
 const app: Express = express();
 const port = process.env.PORT || 3001;
@@ -64,8 +64,8 @@ if (IRYS_ACTIVE_NET === 'devnet') {
 } else if (IRYS_ACTIVE_NET === 'mainnet') {
     if (!IRYS_MAINNET_EVM_PRIVATE_KEY || !IRYS_MAINNET_RPC_URL || !IRYS_MAINNET_TOKEN || !IRYS_MAINNET_NETWORK) {
         console.error("Mainnet Irys configuration (EVM payment) is missing critical values. Check .env.local for IRYS_MAINNET_NETWORK, IRYS_MAINNET_TOKEN, IRYS_MAINNET_EVM_PRIVATE_KEY, IRYS_MAINNET_RPC_URL.");
-        process.exit(1);
-    }
+    process.exit(1);
+}
     try {
         activeRpcProvider = new JsonRpcProvider(IRYS_MAINNET_RPC_URL);
         const rawWallet = new Wallet(IRYS_MAINNET_EVM_PRIVATE_KEY);
@@ -80,8 +80,8 @@ if (IRYS_ACTIVE_NET === 'devnet') {
         console.log(`[server]: Irys configured for MAINNET (EVM Payment). Network: ${IRYS_MAINNET_NETWORK}, Token: ${IRYS_MAINNET_TOKEN}, Wallet: ${activeWalletAddress}, RPC: ${IRYS_MAINNET_RPC_URL}`);
     } catch (error) {
         console.error("Failed to initialize EVM wallet for Mainnet Irys (EVM payment):", error);
-        process.exit(1);
-    }
+    process.exit(1);
+}
 } else {
     console.error(`Invalid IRYS_ACTIVE_NET value: ${IRYS_ACTIVE_NET}. Must be 'devnet' or 'mainnet'.`);
     process.exit(1);
@@ -110,6 +110,17 @@ if (!EAS_SCHEMA_UID) {
 }
 */
 
+// Placeholder: Adjust this value based on irys.utils.priceForBytes() for your desired approval size (e.g., 10MB)
+// and irys.utils.toAtomic() for the chosen token.
+// For example, if 10MB costs 0.001 ETH, this would be parseUnits("0.001", 18).toString()
+const DEFAULT_APPROVAL_AMOUNT_ATOMIC = process.env.DEFAULT_IRYS_APPROVAL_ATOMIC || "5000000000000000"; // Approx 0.005 ETH/MATIC
+
+if (!activeWalletAddress) {
+    console.error("[server]: activeWalletAddress is not defined. This should not happen if Irys config is correct.");
+    process.exit(1);
+}
+const SPONSOR_ADDRESS = activeWalletAddress;
+
 app.get('/api/health', (req: Request, res: Response) => {
     res.status(200).json({ status: 'UP', message: 'Backend is running' });
 });
@@ -125,9 +136,78 @@ app.get('/api/publicKey', (req: Request, res: Response) => {
     }
 });
 
-const ALLOWED_USERS = ['user1_temp_id', 'user2_temp_id'];
+// This endpoint will be called by the frontend before attempting a client-side sponsored upload.
+// It ensures the user's address is approved to spend from the server's Irys balance.
+app.post('/api/initiateSponsoredUpload', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { userAddress } = req.body;
+
+        console.log('[API] /api/initiateSponsoredUpload called with:', req.body);
+
+        if (!userAddress || !isAddress(userAddress)) {
+            console.warn('[API] /api/initiateSponsoredUpload: Invalid userAddress:', userAddress);
+            res.status(400).json({ message: 'Bad Request: valid userAddress is required' });
+            return;
+        }
+
+        if (!activeWalletSigner) {
+            console.error('[API] /api/initiateSponsoredUpload: Server EVM wallet not initialized');
+            res.status(500).json({ message: "Server EVM wallet not initialized for the active network." });
+            return;
+        }
+        
+        console.log(`[server /api/initiateSponsoredUpload] Received request to approve user: ${userAddress}`);
+
+        const irys = new Irys(irysConfig);
+        await irys.ready(); // Ensure SDK is ready
+        console.log('[API] Irys SDK ready. irys.address:', irys.address, 'irys.token:', irys.token);
+
+        // The server's EVM address that pays for Irys transactions (and whose Irys balance is being approved)
+        const serverSponsorEvmAddress = SPONSOR_ADDRESS;
+        // The Irys native address equivalent for the server's EVM key. 
+        // For @irys/sdk, irys.address often IS the EVM address (lowercase) when initialized with an EVM key.
+        const serverSponsorIrysNativeAddress = irys.address; 
+
+        console.log(`[server /api/initiateSponsoredUpload] Server's EVM Address (SPONSOR_ADDRESS variable): ${serverSponsorEvmAddress}`);
+        console.log(`[server /api/initiateSponsoredUpload] Server's Irys Native Address according to backend SDK (irys.address): ${serverSponsorIrysNativeAddress}`);
+
+        const approvalAmount = DEFAULT_APPROVAL_AMOUNT_ATOMIC;
+
+        console.log(`[server /api/initiateSponsoredUpload] Creating approval for user ${userAddress} to spend ${approvalAmount} atomic units of ${irys.token}, funded by server's Irys account tied to EVM key (Irys address: ${serverSponsorIrysNativeAddress})`);
+
+        const approvalReceipt = await irys.approval.createApproval({
+            approvedAddress: userAddress,
+            amount: approvalAmount,
+        });
+
+        console.log(`[server /api/initiateSponsoredUpload] Approval creation successful for ${userAddress}. Receipt:`, approvalReceipt);
+        if (approvalReceipt) {
+            console.log('[API] Approval receipt details:', JSON.stringify(approvalReceipt, null, 2));
+        }
+
+        // Simplified response
+        res.status(200).json({
+            success: true,
+            message: `Server has actioned approval for user ${userAddress} to spend ${approvalAmount} atomic units of ${irys.token}. Approval TX ID: ${approvalReceipt.id}. Associated Server EVM: ${serverSponsorEvmAddress}, Server Irys Address (from SDK): ${serverSponsorIrysNativeAddress}.`,
+            approvalTxId: approvalReceipt.id,
+            approvedAmountAtomic: approvalAmount.toString(),
+            irysApprovalReceipt: approvalReceipt,
+            sponsorEvmAddress: serverSponsorEvmAddress,
+            sponsorIrysAddress: serverSponsorIrysNativeAddress
+        });
+
+    } catch (error) {
+        console.error('[server /api/initiateSponsoredUpload] Error:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ success: false, message: `Failed to initiate sponsored upload: ${errorMessage}` });
+        next(error);
+    }
+});
+
+// const ALLOWED_USERS = ['user1_temp_id', 'user2_temp_id'];
 
 // This endpoint might be deprecated or re-purposed if all uploads are files via /api/uploadPhoto
+/*
 app.post('/api/signData', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { userId, dataToSign } = req.body; 
@@ -241,6 +321,7 @@ app.post('/api/uploadPhoto', upload.single('photoFile'), async (req: Request, re
         next(error);
     }
 });
+*/
 
 app.post('/api/fundIrysNode', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -321,14 +402,18 @@ app.get('/api/irysBalance', async (req: Request, res: Response, next: NextFuncti
     try {
         console.log("[/api/irysBalance] Attempting to check Irys node balance.");
         const irys = new Irys(irysConfig);
+        await irys.ready(); // Ensure SDK is ready
         const balanceAtomic = await irys.getLoadedBalance();
         const balanceStd = irys.utils.fromAtomic(balanceAtomic).toString();
 
         console.log(`[/api/irysBalance] Node balance: ${balanceStd} ${irys.token}`);
+        console.log(`[/api/irysBalance] Irys address: ${irys.address}`);
+
         res.status(200).json({
             token: irys.token,
             balanceAtomic: balanceAtomic.toString(),
             balanceStandard: balanceStd,
+            irysAddress: irys.address,
             message: `Current Irys node balance is ${balanceStd} ${irys.token}`
         });
     } catch (error) {
@@ -440,6 +525,60 @@ app.post('/api/submitDelegatedAttestation', async (req: Request, res: Response, 
 });
 */
 
+// --- BEGIN: Sponsor Approvals Endpoint ---
+app.get('/api/sponsorApprovals', (req: Request, res: Response) => {
+  (async () => {
+    try {
+      console.log('[API] /api/sponsorApprovals called');
+      const irys = new Irys(irysConfig);
+      await irys.ready();
+      const sponsorAddress = (process.env.SPONSOR_ADDRESS || activeWalletAddress || '').toLowerCase();
+      if (!sponsorAddress) {
+        return res.status(500).json({ success: false, message: 'SPONSOR_ADDRESS not set' });
+      }
+      // Fetch approvals *created* by sponsor
+      // Get approvals the *sponsor* created for any delegates
+      const sponsorApprovals = await irys.approval.getCreatedApprovals({});
+      console.log('[API] Sponsor approvals:', sponsorApprovals);
+      res.json({ success: true, sponsorApprovals });
+    } catch (err) {
+      const message = (err instanceof Error) ? err.message : 'Unknown error';
+      console.error('[API] /api/sponsorApprovals error:', err);
+      res.status(500).json({ success: false, message });
+    }
+  })();
+});
+// --- END: Sponsor Approvals Endpoint ---
+
+// --- BEGIN: Uploader Approvals Endpoint ---
+app.get('/api/uploaderApprovals', (req: Request, res: Response) => {
+  (async () => {
+    try {
+      const uploaderAddress = req.query.uploaderAddress?.toString().toLowerCase();
+      console.log('[API] /api/uploaderApprovals called for uploader:', uploaderAddress);
+      if (!uploaderAddress) {
+        return res.status(400).json({ success: false, message: 'uploaderAddress is required' });
+      }
+      // Filter out null/undefined
+      const approvedAddresses = [uploaderAddress].filter(Boolean);
+      if (!approvedAddresses.length) {
+        console.warn('[API] /api/uploaderApprovals: No valid uploader address after filtering. Cannot query Irys.');
+        return res.status(400).json({ success: false, message: "Missing valid uploader address for Irys query" });
+      }
+      const irys = new Irys(irysConfig);
+      await irys.ready();
+      const uploaderCreatedApprovals = await irys.approval.getCreatedApprovals({ approvedAddresses });
+      console.log('[API] Uploader createdApprovals:', uploaderCreatedApprovals);
+      res.json({ success: true, uploaderCreatedApprovals });
+    } catch (err) {
+      const message = (err instanceof Error) ? err.message : 'Unknown error';
+      console.error('[API] /api/uploaderApprovals error:', err);
+      res.status(500).json({ success: false, message });
+    }
+  })();
+});
+// --- END: Uploader Approvals Endpoint ---
+
 // Generic error handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     console.error("[server]: Unhandled error:", err.stack); // Log stack for debugging
@@ -452,6 +591,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 const checkBalanceAtStartup = async () => {
     try {
         const irys = new Irys(irysConfig);
+        await irys.ready(); // Ensure SDK is ready
         const irysBalanceAtomic = await irys.getLoadedBalance();
         const irysBalanceStd = irys.utils.fromAtomic(irysBalanceAtomic).toString();
         console.log(`[server]: Connected to Irys (${irysConfig.network}). Server Irys Node Balance (${irys.token}): ${irysBalanceStd}`);
@@ -475,4 +615,5 @@ app.listen(port, () => {
     // console.log(`[server]: EAS Schema UID: ${EAS_SCHEMA_UID}`);
     // console.log(`[server]: EAS Contract Address (Base Sepolia): ${EAS_CONTRACT_ADDRESS_BASE_SEPOLIA}`);
     checkBalanceAtStartup();
+    console.log(`[server]: SPONSOR ADDRESS for Irys balance approvals: ${SPONSOR_ADDRESS}`);
 }); 

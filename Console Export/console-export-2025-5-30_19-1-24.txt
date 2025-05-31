@@ -1,0 +1,106 @@
+SES The 'dateTaming' option is deprecated and does nothing. In the future specifying it will be an error. lockdown-install.js:1:194912
+SES The 'mathTaming' option is deprecated and does nothing. In the future specifying it will be an error. lockdown-install.js:1:194912
+SES Removing unpermitted intrinsics lockdown-install.js:1:195048
+  Removing intrinsics.%DatePrototype%.toTemporalInstant lockdown-install.js:1:194893
+Download the React DevTools for a better development experience: https://react.dev/link/react-devtools f07ee_next_dist_compiled_072afd38._.js:16384:54
+unreachable code after return statement node_modules__pnpm_39bd49cb._.js:251:5
+unreachable code after return statement node_modules__pnpm_39bd49cb._.js:26712:5
+unreachable code after return statement node_modules__pnpm_39bd49cb._.js:27028:5
+MetaMask is installed! src_app_page_tsx_b025fed5._.js:109:25
+unreachable code after return statement 95e02_exifr_dist_full_esm_mjs_a6f0766c._.js:259:5
+Server EVM address (lowercase): 0x1c84aeee52fd416c0e6357856bcfd96acdbc0035 src_app_page_tsx_b025fed5._.js:300:37
+Accounts changed: 
+Array [ "0xfc89f8d420c90ae9341b3239b4f1173bab925ddd" ]
+src_app_page_tsx_b025fed5._.js:114:33
+Sponsor's Irys balance check: 
+Object { sponsorAddress: "0x1c84aeee52fd416c0e6357856bcfd96acdbc0035", balance: "0.00239245297759373" }
+src_app_page_tsx_b025fed5._.js:581:21
+Selected file: IMG_0002 Large.jpeg image/jpeg 277045 src_app_page_tsx_b025fed5._.js:197:21
+File hash generated: 0x75bcd8a21333c11ba8cd33d39226240fb2923d527cf68842dbf39abc74bdae97 src_app_page_tsx_b025fed5._.js:206:29
+XHRGET
+http://localhost:3000/api/uploaderApprovals?uploaderAddress=0xfc89f8d420c90ae9341b3239b4f1173bab925ddd
+[HTTP/1.1 404 Not Found 115ms]
+
+Requesting signature for message: I confirm this is my file with hash: 0x75bcd8a21333c11ba8cd33d39226240fb2923d527cf68842dbf39abc74bdae97 src_app_page_tsx_b025fed5._.js:342:21
+The resource at “http://localhost:3000/_next/static/media/gyByhwUxId8gMEwcGFWNOITd-s.p.da1ebef7.woff2” preloaded with link preload was not used within a few seconds. Make sure all attributes of the preload tag are set correctly. localhost:3000
+The resource at “http://localhost:3000/_next/static/media/or3nQ6H_1_WfwkMZI_qYFrcdmhHkjko-s.p.be19f591.woff2” preloaded with link preload was not used within a few seconds. Make sure all attributes of the preload tag are set correctly. localhost:3000
+File hash signed successfully: 0xa2f839923769d98c3a7d7c0145bc184588bd8cc3f56b52fb9bac9e74b58ece7c1c74b4a0d54edc8383dd814e914103d28c3fab64eb511a641b69c01d0f184de01b src_app_page_tsx_b025fed5._.js:347:25
+[handleUploadAndSign] Irys Uploader Initialized. Node URL: 
+URL { href: "https://uploader.irys.xyz/", origin: "https://uploader.irys.xyz", protocol: "https:", username: "", password: "", host: "uploader.irys.xyz", hostname: "uploader.irys.xyz", port: "", pathname: "/", search: "" }
+ Token: ethereum src_app_page_tsx_b025fed5._.js:363:25
+[handleUploadAndSign] Checking for existing approval. PayingAddress: 0x1c84aeee52fd416c0e6357856bcfd96acdbc0035, ApprovedAddress: 0xfc89f8d420c90ae9341b3239b4f1173bab925ddd src_app_page_tsx_b025fed5._.js:373:21
+[handleUploadAndSign] Existing specific approvals found: 
+Array []
+src_app_page_tsx_b025fed5._.js:382:21
+[handleUploadAndSign] No approvals found for this uploader from the sponsor. src_app_page_tsx_b025fed5._.js:404:25
+[handleUploadAndSign] Backend approval request skipped due to toggle. Will attempt upload with whatever Irys finds. src_app_page_tsx_b025fed5._.js:429:25
+[FINAL PRE-UPLOAD CHECK] Verifying approval with the upload instance immediately before upload attempt... src_app_page_tsx_b025fed5._.js:432:21
+[FINAL PRE-UPLOAD CHECK] Approvals found by upload instance: 
+Array []
+src_app_page_tsx_b025fed5._.js:443:25
+[FINAL PRE-UPLOAD CHECK] No approvals found AT ALL by upload instance for this sponsor/uploader pair. src_app_page_tsx_b025fed5._.js:465:29
+[FINAL PRE-UPLOAD CHECK] Final pre-upload check FAILED or found insufficient approval. Upload might fail or use an unexpected state. src_app_page_tsx_b025fed5._.js:471:25
+Attempting upload to Irys with sponsorship. File: IMG_0002 Large.jpeg User: 0xfc89f8d420c90ae9341b3239b4f1173bab925ddd Tags: 
+Array(7) [ {…}, {…}, {…}, {…}, {…}, {…}, {…} ]
+src_app_page_tsx_b025fed5._.js:508:21
+[UPLOAD ATTEMPT] Uploading with parameters: 
+Object { fileSize: 277045, tags: (7) […], paidBy: "0x1c84aeee52fd416c0e6357856bcfd96acdbc0035", irysInstanceNodeUrl: "https://uploader.irys.xyz/", irysInstanceToken: "ethereum", connectedAccount: "0xfc89f8d420c90ae9341b3239b4f1173bab925ddd", expectedSponsor: "0x1c84aeee52fd416c0e6357856bcfd96acdbc0035" }
+src_app_page_tsx_b025fed5._.js:514:21
+XHRPOST
+https://uploader.irys.xyz/tx/ethereum
+[HTTP/3 402  203ms]
+
+Error during Irys upload: Error: 402 error: No approval from this address for this token
+    NextJS 3
+    handleUploadAndSign page.tsx:545
+    executeDispatch react-dom-client.development.js:16501
+    runWithFiberInDEV react-dom-client.development.js:847
+    processDispatchQueue react-dom-client.development.js:16551
+    next NextJS
+    batchedUpdates$1 react-dom-client.development.js:3262
+    dispatchEventForPluginEventSystem react-dom-client.development.js:16705
+    dispatchEvent react-dom-client.development.js:20816
+    dispatchDiscreteEvent react-dom-client.development.js:20783
+    addTrappedEventListener react-dom-client.development.js:16652
+    listenToNativeEvent react-dom-client.development.js:16588
+    next NextJS
+    listenToAllSupportedEvents react-dom-client.development.js:16597
+    NextJS 3
+    hydrate app-index.tsx:282
+    NextJS 2
+    loadScriptsInSequence app-bootstrap.ts:20
+    appBootstrap app-bootstrap.ts:60
+    next NextJS
+    instantiateModule dev-base.ts:201
+    runModuleExecutionHooks dev-base.ts:261
+    instantiateModule dev-base.ts:199
+    getOrInstantiateRuntimeModule dev-base.ts:97
+    registerChunk runtime-backend-dom.ts:85
+    registerChunk runtime-base.ts:356
+    NextJS 2
+f07ee_next_dist_client_5cf5dcf9._.js:1226:32
+[Fast Refresh] rebuilding f07ee_next_dist_client_5cf5dcf9._.js:14984:17
+[Fast Refresh] done in 183ms f07ee_next_dist_client_5cf5dcf9._.js:14848:13
+Requesting signature for message: I confirm this is my file with hash: 0x75bcd8a21333c11ba8cd33d39226240fb2923d527cf68842dbf39abc74bdae97 src_app_page_tsx_b025fed5._.js:342:21
+File hash signed successfully: 0xa2f839923769d98c3a7d7c0145bc184588bd8cc3f56b52fb9bac9e74b58ece7c1c74b4a0d54edc8383dd814e914103d28c3fab64eb511a641b69c01d0f184de01b src_app_page_tsx_b025fed5._.js:347:25
+[handleUploadAndSign] Irys Uploader Initialized. Node URL: 
+URL { href: "https://uploader.irys.xyz/", origin: "https://uploader.irys.xyz", protocol: "https:", username: "", password: "", host: "uploader.irys.xyz", hostname: "uploader.irys.xyz", port: "", pathname: "/", search: "" }
+ Token: ethereum src_app_page_tsx_b025fed5._.js:363:25
+[handleUploadAndSign] Checking for existing approval. PayingAddress: 0x1c84aeee52fd416c0e6357856bcfd96acdbc0035, ApprovedAddress: 0xfc89f8d420c90ae9341b3239b4f1173bab925ddd src_app_page_tsx_b025fed5._.js:373:21
+[handleUploadAndSign] Existing specific approvals found: 
+Array []
+src_app_page_tsx_b025fed5._.js:382:21
+[handleUploadAndSign] No approvals found for this uploader from the sponsor. src_app_page_tsx_b025fed5._.js:404:25
+[handleUploadAndSign] Backend approval request skipped due to toggle. Will attempt upload with whatever Irys finds. src_app_page_tsx_b025fed5._.js:429:25
+[FINAL PRE-UPLOAD CHECK] Verifying approval with the upload instance immediately before upload attempt... src_app_page_tsx_b025fed5._.js:432:21
+[FINAL PRE-UPLOAD CHECK] Approvals found by upload instance: 
+Array []
+src_app_page_tsx_b025fed5._.js:443:25
+[FINAL PRE-UPLOAD CHECK] No approvals found AT ALL by upload instance for this sponsor/uploader pair. src_app_page_tsx_b025fed5._.js:465:29
+[FINAL PRE-UPLOAD CHECK] Final pre-upload check FAILED or found insufficient approval. Upload might fail or use an unexpected state. src_app_page_tsx_b025fed5._.js:471:25
+Attempting upload to Irys with sponsorship. File: IMG_0002 Large.jpeg User: 0xfc89f8d420c90ae9341b3239b4f1173bab925ddd Tags: 
+Array(7) [ {…}, {…}, {…}, {…}, {…}, {…}, {…} ]
+src_app_page_tsx_b025fed5._.js:508:21
+[UPLOAD ATTEMPT] Uploading with parameters: 
+Object { fileSize: 277045, tags: (7) […], paidBy: "0x1c84aeee52fd416c0e6357856bcfd96acdbc0035", irysInstanceNodeUrl: "https://uploader.irys.xyz/", irysInstanceToken: "ethereum", connectedAccount: "0xfc89f8d420c90ae9341b3239b4f1173bab925ddd", expectedSponsor: "0x1c84aeee52fd416c0e6357856bcfd96acdbc0035" }
+src_app_page_tsx_b025fed5._.js:514:21

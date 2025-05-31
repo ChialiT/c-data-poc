@@ -276,3 +276,127 @@ GET  /health              - System health check
 - Optimism Sepolia gas costs (sponsored attestations)
 - Backend hosting and database costs
 - Development and testing resources 
+
+
+------
+
+Addendum
+
+🕪 Crowd-Sourced Data Collection POC
+
+Updated Technical Specification & Development Phases
+
+Overview
+
+This Proof of Concept (POC) demonstrates a decentralized crowd-sourced data collection platform that enables users to easily contribute geo-tagged photos with verifiable metadata. The system leverages blockchain attestations for data integrity, decentralized storage for permanence, and sponsored transactions for seamless user experience.
+
+Core Value Proposition
+
+Zero-friction user onboarding: Users don't need existing crypto wallets or gas tokens
+
+Verifiable data provenance: All submissions are cryptographically attested
+
+Permanent storage: Photos and metadata stored on Arweave for long-term accessibility
+
+Transparent data collection: All attestations are publicly verifiable on-chain
+
+Technology Stack
+
+Frontend & User Management:
+
+Privy (Account Abstraction & wallet generation)
+
+React/Next.js web application
+
+Blockchain Infrastructure:
+
+Optimism Sepolia (testnet for EAS attestations)
+
+Ethereum Attestation Service (EAS) for data verification
+
+Gas sponsorship for seamless transactions
+
+Decentralized Storage:
+
+Arweave mainnet for permanent photo storage
+
+Irys for upload rail (with sponsor balance + user ownership via balance approvals)
+
+ARFS (optional) for logical dataset organization and future discoverability
+
+Backend Services:
+
+Node.js server for balance monitoring, thumbnail caching, and metadata indexing
+
+Secure environment variable management for funding keys
+
+Data Flow Architecture (Updated)
+
+User Onboarding: Privy generates embedded EVM wallet
+
+Content Capture: User selects image file
+
+Preview Optimization: Thumbnail generated client-side for UI
+
+Metadata Extraction: Timestamp + GPS pulled from EXIF
+
+Message Signing: User signs image hash via MetaMask
+
+Server Approval: Server checks user's approved upload allowance (balance approval)
+
+Balance Check: If allowance < threshold, top-up approval to 100 MB
+
+Direct Upload: Client signs + uploads file directly to Irys using user's wallet
+
+Storage: Irys bundles and submits to Arweave; owner is the user wallet
+
+Attestation: EAS record created linking metadata to Arweave TX ID
+
+Cryptographic Attribution (Updated)
+
+Uploader-Address: User's wallet address (EVM)
+
+Signed-Message-Hash: SHA-256 or Keccak hash of the image
+
+Signature: MetaMask-generated signature of the hash
+
+owner (on-chain): Matches the user's wallet, verified via ecrecover
+
+ArFS Use Case
+
+Optional use of ARFS for structured archival
+
+Folders (e.g. /corals/2025/region/file.jpg) help organize uploads
+
+Manifests increase future retrievability and dataset clarity
+
+Backend Role
+
+Handles balance funding
+
+Monitors approvals per user
+
+Tops up user upload limits on demand
+
+Maintains secure private key in .env (e.g. IRYS_MAINNET_EVM_PRIVATE_KEY)
+
+Updated Success Criteria (Phase 1–4)
+
+Image upload is signed and initiated by user (not server)
+
+Server sponsors transaction cost via balance approvals
+
+User wallet appears as owner in Arweave DataItem
+
+Image bypasses server entirely
+
+Upload is cryptographically attributed to the user
+
+Tags store signature evidence for verifiability
+
+Balance approval auto-top-up if allowance < threshold (e.g. 10 MB)
+
+All uploads visible and grouped logically via optional ARFS
+
+(Other existing content related to EAS, thumbnailing, UI, metadata remains unchanged and compatible)
+

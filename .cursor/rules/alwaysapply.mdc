@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Always apply sugegstions without confirmation unless it's major like a refactor.

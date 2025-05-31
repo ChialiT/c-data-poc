@@ -1,0 +1,234 @@
+GET
+http://localhost:3000/
+[HTTP/1.1 200 OK 625ms]
+
+SES The 'dateTaming' option is deprecated and does nothing. In the future specifying it will be an error. lockdown-install.js:1:194912
+SES The 'mathTaming' option is deprecated and does nothing. In the future specifying it will be an error. lockdown-install.js:1:194912
+SES Removing unpermitted intrinsics lockdown-install.js:1:195048
+  Removing intrinsics.%DatePrototype%.toTemporalInstant lockdown-install.js:1:194893
+GET
+http://localhost:3000/_next/static/media/gyByhwUxId8gMEwcGFWNOITd-s.p.da1ebef7.woff2
+[HTTP/1.1 200 OK 12ms]
+
+GET
+http://localhost:3000/_next/static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_727141ce._.js
+[HTTP/1.1 200 OK 12ms]
+
+GET
+http://localhost:3000/_next/static/chunks/[root-of-the-server]__8ebb6d4b._.css
+[HTTP/1.1 200 OK 13ms]
+
+GET
+http://localhost:3000/_next/static/media/or3nQ6H_1_WfwkMZI_qYFrcdmhHkjko-s.p.be19f591.woff2
+[HTTP/1.1 200 OK 12ms]
+
+GET
+http://localhost:3000/_next/static/chunks/61dca_@swc_helpers_cjs_e27e0aca._.js
+[HTTP/1.1 200 OK 6ms]
+
+GET
+http://localhost:3000/_next/static/chunks/f07ee_next_dist_eb86032f._.js
+[HTTP/1.1 200 OK 9ms]
+
+GET
+http://localhost:3000/_next/static/chunks/f07ee_next_dist_client_5cf5dcf9._.js
+[HTTP/1.1 200 OK 45ms]
+
+GET
+http://localhost:3000/_next/static/chunks/f07ee_next_dist_compiled_072afd38._.js
+[HTTP/1.1 200 OK 59ms]
+
+GET
+http://localhost:3000/_next/static/chunks/node_modules__pnpm_32be2e3a._.js
+[HTTP/1.1 200 OK 14ms]
+
+GET
+http://localhost:3000/_next/static/chunks/src_app_layout_tsx_be0f615f._.js
+[HTTP/1.1 200 OK 11ms]
+
+GET
+http://localhost:3000/_next/static/chunks/src_app_favicon_ico_mjs_df4f45d2._.js
+[HTTP/1.1 200 OK 8ms]
+
+GET
+http://localhost:3000/_next/static/chunks/f07ee_next_dist_35a4b6e8._.js
+[HTTP/1.1 200 OK 11ms]
+
+GET
+http://localhost:3000/_next/static/chunks/_42fd111b._.js
+[HTTP/1.1 200 OK 9ms]
+
+GET
+http://localhost:3000/_next/static/chunks/_e69f0d32._.js
+[HTTP/1.1 200 OK 5ms]
+
+GET
+http://localhost:3000/_next/static/chunks/f07ee_next_dist_compiled_0c0b08b8._.js
+[HTTP/1.1 200 OK 28ms]
+
+GET
+http://localhost:3000/_next/static/chunks/f07ee_next_dist_compiled_crypto-browserify_index_9c4129bf.js
+[HTTP/1.1 200 OK 46ms]
+
+GET
+http://localhost:3000/_next/static/chunks/src_app_page_tsx_b025fed5._.js
+[HTTP/1.1 200 OK 17ms]
+
+GET
+http://localhost:3000/_next/static/chunks/cbe4a_ethers_lib_esm_abi_1f46c431._.js
+[HTTP/1.1 200 OK 27ms]
+
+GET
+http://localhost:3000/_next/static/chunks/cbe4a_ethers_lib_esm_utils_3bbd7052._.js
+[HTTP/1.1 200 OK 24ms]
+
+GET
+http://localhost:3000/_next/static/chunks/f07ee_next_dist_build_polyfills_fetch_whatwg-fetch_78a3c119.js
+[HTTP/1.1 200 OK 17ms]
+
+GET
+http://localhost:3000/_next/static/chunks/cbe4a_ethers_lib_esm_662a64f0._.js
+[HTTP/1.1 200 OK 50ms]
+
+GET
+http://localhost:3000/_next/static/chunks/cbe4a_ethers_lib_esm_wallet_a10d1859._.js
+[HTTP/1.1 200 OK 36ms]
+
+GET
+http://localhost:3000/_next/static/chunks/cbe4a_ethers_lib_esm_providers_95795557._.js
+[HTTP/1.1 200 OK 45ms]
+
+GET
+http://localhost:3000/_next/static/chunks/51778_@irys_bundles_build_web_esm_3728676f._.js
+[HTTP/1.1 200 OK 60ms]
+
+GET
+http://localhost:3000/_next/static/chunks/e9499_axios_lib_f34fa33c._.js
+[HTTP/1.1 200 OK 58ms]
+
+GET
+http://localhost:3000/_next/static/chunks/node_modules__pnpm_d54fa391._.js
+[HTTP/1.1 200 OK 60ms]
+
+GET
+http://localhost:3000/_next/static/chunks/node_modules__pnpm_27836096._.js
+[HTTP/1.1 200 OK 55ms]
+
+GET
+http://localhost:3000/_next/static/chunks/node_modules__pnpm_4d5d9b3f._.js
+[HTTP/1.1 200 OK 46ms]
+
+GET
+http://localhost:3000/_next/static/chunks/6926f_starknet_dist_index_mjs_ba7a88ef._.js
+[HTTP/1.1 200 OK 75ms]
+
+GET
+http://localhost:3000/_next/static/chunks/b6470_psl_dist_psl_cjs_ba72e15a._.js
+[HTTP/1.1 200 OK 69ms]
+
+GET
+http://localhost:3000/_next/static/chunks/61529_pako_dist_pako_esm_mjs_5e8a2e1f._.js
+[HTTP/1.1 200 OK 70ms]
+
+GET
+http://localhost:3000/_next/static/chunks/ed553_readable-stream_7cbedc33._.js
+[HTTP/1.1 200 OK 61ms]
+
+GET
+http://localhost:3000/_next/static/chunks/5d8e6_elliptic_dc2a7375._.js
+[HTTP/1.1 200 OK 60ms]
+
+GET
+http://localhost:3000/_next/static/chunks/node_modules__pnpm_b3da285d._.js
+[HTTP/1.1 200 OK 60ms]
+
+GET
+http://localhost:3000/_next/static/chunks/src_app_page_tsx_772309ec._.js
+[HTTP/1.1 200 OK 62ms]
+
+GET
+http://localhost:3000/_next/static/chunks/node_modules__pnpm_39bd49cb._.js
+[HTTP/1.1 200 OK 100ms]
+
+GET
+http://localhost:3000/_next/static/chunks/922a7_@ethersproject_abi_lib_esm_971caa61._.js
+[HTTP/1.1 200 OK 64ms]
+
+Error in parsing value for “-webkit-text-size-adjust”.  Declaration dropped. [root-of-the-server]__8ebb6d4b._.css:184:31
+Download the React DevTools for a better development experience: https://react.dev/link/react-devtools f07ee_next_dist_compiled_072afd38._.js:16384:54
+GET
+http://localhost:3000/favicon.ico?favicon.45db1c09.ico
+[HTTP/1.1 200 OK 247ms]
+
+GET
+http://localhost:3000/favicon.ico?favicon.45db1c09.ico
+[HTTP/1.1 200 OK 249ms]
+
+GET
+http://localhost:3000/favicon.ico?favicon.45db1c09.ico
+[HTTP/1.1 200 OK 257ms]
+
+unreachable code after return statement node_modules__pnpm_39bd49cb._.js:251:5
+unreachable code after return statement node_modules__pnpm_39bd49cb._.js:26712:5
+unreachable code after return statement node_modules__pnpm_39bd49cb._.js:27028:5
+[DEBUG] Environment Variables: 
+Object { IRYS_NODE_URL: "https://node1.irys.xyz", IRYS_TOKEN_NAME: "ethereum", IRYS_RPC_URL: "https://eth-mainnet.g.alchemy.com/v2/7Gkay4O2EWsw7V835PPff", IRYS_NETWORK_NAME: "mainnet" }
+src_app_page_tsx_b025fed5._.js:38:9
+MetaMask is installed! src_app_page_tsx_b025fed5._.js:119:25
+Error in parsing value for “-webkit-text-size-adjust”.  Declaration dropped. localhost:3000:1:147
+:host selector in ‘:host:not(button)’ is not featureless and will never match. Maybe you intended to use :host()? localhost:3000:1:563
+Unknown pseudo-class or pseudo-element “global”.  Ruleset ignored due to bad selector. localhost:3000:1:27515
+GET
+http://localhost:3000/_next/static/chunks/95e02_exifr_dist_full_esm_mjs_a6f0766c._.js
+[HTTP/1.1 200 OK 6ms]
+
+GET
+http://localhost:3000/_next/static/chunks/95e02_exifr_dist_full_esm_mjs_cb738f94._.js
+[HTTP/1.1 200 OK 13ms]
+
+XHRGET
+http://localhost:3000/api/publicKey
+[HTTP/1.1 200 OK 129ms]
+
+GET
+http://localhost:3000/_next/static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_2fac41c7._.js
+[HTTP/1.1 200 OK 16ms]
+
+GET
+http://localhost:3000/_next/static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_61dcf9ba._.js
+[HTTP/1.1 200 OK 17ms]
+
+GET
+ws://localhost:3000/_next/webpack-hmr
+[HTTP/1.1 101 Switching Protocols 7ms]
+
+Accounts changed: 
+Array [ "0xfc89f8d420c90ae9341b3239b4f1173bab925ddd" ]
+src_app_page_tsx_b025fed5._.js:124:33
+GET
+http://localhost:3000/__nextjs_font/geist-latin.woff2
+[HTTP/1.1 200 OK 2ms]
+
+unreachable code after return statement 95e02_exifr_dist_full_esm_mjs_a6f0766c._.js:259:5
+XHRGET
+http://localhost:3000/api/uploaderApprovals?uploaderAddress=0xfc89f8d420c90ae9341b3239b4f1173bab925ddd
+[HTTP/1.1 200 OK 253ms]
+
+Server EVM address (lowercase): 0x1c84aeee52fd416c0e6357856bcfd96acdbc0035 src_app_page_tsx_b025fed5._.js:310:37
+XHRGET
+http://localhost:3000/api/irysBalance
+[HTTP/1.1 200 OK 201ms]
+
+Sponsor's Irys balance check: 
+Object { sponsorAddress: "0x1c84aeee52fd416c0e6357856bcfd96acdbc0035", balance: "0.00239245297759373" }
+src_app_page_tsx_b025fed5._.js:591:21
+XHRGET
+http://localhost:3000/api/sponsorApprovals?sponsorAddress=0x1c84aeee52fd416c0e6357856bcfd96acdbc0035
+[HTTP/1.1 200 OK 171ms]
+
+XHRGET
+http://localhost:3000/api/uploaderApprovals?uploaderAddress=0xfc89f8d420c90ae9341b3239b4f1173bab925ddd
+[HTTP/1.1 200 OK 192ms]
+
+The resource at “http://localhost:3000/_next/static/media/gyByhwUxId8gMEwcGFWNOITd-s.p.da1ebef7.woff2” preloaded with link preload was not used within a few seconds. Make sure all attributes of the preload tag are set correctly. localhost:3000
+The resource at “http://localhost:3000/_next/static/media/or3nQ6H_1_WfwkMZI_qYFrcdmhHkjko-s.p.be19f591.woff2” preloaded with link preload was not used within a few seconds. Make sure all attributes of the preload tag are set correctly. localhost:3000
